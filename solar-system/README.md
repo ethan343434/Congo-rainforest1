@@ -17,6 +17,8 @@ or major moon, land on solid worlds and walk around in a spacesuit.
 - **Survival.** Fly too close to the Sun and the hull melts. Air hits hard if you enter
   it too fast. Jupiter's 2.5 g wins against your hover thrusters, and its pressure
   crushes you if you sink. On foot, your suit's life support and hazard protection drain.
+  Crash into a rocky planet or moon and the ship survives as a wreck: you are thrown
+  clear and stay grounded for 2 minutes while its repair drones fix it.
   Each body's scanner entry has a survivability rating: Lethal, Hostile, Suit required or
   Habitable.
 - **Warp drive.** Press `K` and you jump straight to the selected target. You arrive on

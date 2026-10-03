@@ -20,7 +20,9 @@
 //   planet between two frames.
 // * Autopilot: aligns, pulses, routes around the Sun, and drops you out on the
 //   sunlit side of the target.
-// * Landing: gentle touchdowns on solid ground; hard ones damage or destroy.
+// * Landing: gentle touchdowns on solid ground; hard ones damage the ship,
+//   and a crash on a rocky world or moon wrecks it (the game layer throws
+//   you clear and runs the repairs).
 // =============================================================================
 import * as THREE from 'three';
 import { C_LIGHT, AU, G0 } from '../constants.js';
@@ -482,6 +484,12 @@ export class ShipSim {
     }
     if (vn >= 0) return; // sliding/climbing away
     if (impact > SHIP.crashSpeed) {
+      if (body.def.terrain !== undefined) {
+        // Solid ground: a crash landing. The ship survives, badly damaged.
+        this.land(body, normal);
+        this.events.push({ type: 'crash', body, speed: impact, survivable: true });
+        return;
+      }
       this.events.push({ type: 'crash', body, speed: impact, fatal: true });
       this.mode = 'destroyed';
       this.vel.copy(vSurf);

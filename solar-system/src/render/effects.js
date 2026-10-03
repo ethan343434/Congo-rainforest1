@@ -197,14 +197,16 @@ export class Explosion {
     this.active = false;
   }
 
-  trigger(worldPos) {
+  /** size: 1 for a ship blowing up, smaller for a crash landing. */
+  trigger(worldPos, size = 1) {
     this.world.copy(worldPos);
+    this.size = size;
     this.t = 0;
     this.active = true;
     this.group.visible = true;
     for (const d of this.debris) {
       d.m.position.set(0, 0, 0);
-      d.v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(15 + Math.random() * 60);
+      d.v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar((15 + Math.random() * 60) * size);
       d.w.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
     }
   }
@@ -214,7 +216,7 @@ export class Explosion {
     this.t += dt;
     const t = this.t;
     this.group.position.subVectors(this.world, origin);
-    const r = 4 + 70 * (1 - Math.exp(-t * 2.5));
+    const r = (4 + 70 * (1 - Math.exp(-t * 2.5))) * (this.size ?? 1);
     this.fire.scale.setScalar(r);
     this.fireMat.opacity = Math.max(0, 1 - t / 2.2);
     this.fireMat.color.setRGB(1, 0.75 - Math.min(0.5, t * 0.3), 0.45 - Math.min(0.4, t * 0.3));

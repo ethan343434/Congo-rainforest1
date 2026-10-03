@@ -56,7 +56,8 @@ function run(ctx, seconds, dt = 1 / 60, each) {
   });
   const expected = Math.sqrt((2 * 1000) / 1.625);
   check('Lunar free fall time matches √(2h/g)', tImpact && Math.abs(tImpact - expected) < 1.0, `${tImpact?.toFixed(2)} s vs ${expected.toFixed(2)} s`);
-  check('A 57 m/s lunar impact destroys the ship', c.ship.mode === 'destroyed', `impact ${impactSpeed?.toFixed(1)} m/s`);
+  const crash = c.ship.events.find((e) => e.type === 'crash');
+  check('A 57 m/s lunar impact is a survivable crash landing', crash?.survivable && c.ship.mode === 'landed', `impact ${impactSpeed?.toFixed(1)} m/s, ship ${c.ship.mode}`);
 }
 
 // 3. One full circular orbit of the Moon at 100 km (assist off).

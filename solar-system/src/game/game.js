@@ -52,6 +52,8 @@ const GROUND_LOOK = {
 };
 
 // Optical "visibility" of the air near the ground (m) for aerial perspective.
+const REPAIR_TIME = 120; // s grounded after a crash landing
+const repairClock = (s) => { const t = Math.ceil(Math.max(0, s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3, proxb: 55e3 };
 
 /** Linear scene colour → final on-screen colour (three.js ACES filmic + sRGB). */
@@ -305,6 +307,7 @@ export class Game {
     this.explosion.active = false;
     this.explosion.group.visible = false;
     this.warp = null;
+    this.repair = null;
     this.selectTarget(moon, false);
     this.lastBody = earth;
   }
@@ -657,12 +660,19 @@ export class Game {
           this.hud.toast(`Touchdown on ${e.body.name}`, `${formatSpeed(e.speed)} descent. Press E to step outside.`, '', 6);
           break;
         case 'impact':
+          if (e.body.def.terrain !== undefined && this.systems.hull - (e.speed - SHIP.safeTouchdown) * 3.2 <= 0) {
+            // The hard landing that would finish the ship off becomes a crash landing.
+            ship.land(e.body, ship.rel.clone().normalize());
+            this.crashLanding(e.body, e.speed);
+            break;
+          }
           this.systems.damage((e.speed - SHIP.safeTouchdown) * 3.2, 'hard landing', this.playTime);
           this.audio.play('impact');
           this.damageFlash = 1;
           this.hud.toast('Hard landing', `Hit the ground at ${formatSpeed(e.speed)}.`, 'warn', 4);
           break;
         case 'crash':
+          if (e.survivable) { this.crashLanding(e.body, e.speed); break; }
           this.systems.destroy(`Crashed into ${e.body.name} at ${formatSpeed(e.speed)}.`);
           break;
         case 'autoland': this.hud.toast('Auto-land', 'Descending to the surface.', '', 4); break;
@@ -816,6 +826,41 @@ export class Game {
     }
   }
 
+  /** Crash on a rocky world or moon: the wreck survives, you are thrown clear. */
+  crashLanding(body, speed) {
+    const sys = this.systems;
+    if (sys.destroyed) return;
+    sys.hull = Math.min(sys.hull, 8);
+    sys.lastDamageTime = this.playTime;
+    this.explosion.trigger(this.ship.worldPos(new THREE.Vector3()), 0.3);
+    this.audio.play('explosion');
+    this.damageFlash = 1;
+    this.repair = { body, total: REPAIR_TIME, left: REPAIR_TIME, startHull: sys.hull, eject: true };
+    this.hud.toast(`Crash landing on ${body.name}`, `Hit the ground at ${formatSpeed(speed)}. You were thrown clear. The repair drones need 2 minutes before the ship can fly.`, 'warn', 9);
+  }
+
+  /** Repairs after a crash landing: throw the pilot out, then count down. */
+  updateRepair(dt) {
+    const r = this.repair;
+    if (!r) return;
+    if (this.systems.destroyed) { this.repair = null; return; }
+    if (r.eject && !this.onFoot && this.ship.mode === 'landed' && this.terrainFor(r.body)) {
+      r.eject = false;
+      this.exitShip();
+    }
+    r.left -= dt;
+    const p = Math.min(1, 1 - r.left / r.total);
+    this.systems.hull = Math.max(this.systems.hull, r.startHull + (100 - r.startHull) * p);
+    if (r.left <= 0) {
+      this.repair = null;
+      this.systems.hull = 100;
+      this.hud.toast('Ship repaired', 'Walk back to the ship and press E to board.', 'discovery', 7);
+      this.audio.play('chime');
+      return;
+    }
+    this.warnings.unshift({ level: 'caution', text: `Ship repairs ${repairClock(r.left)} · grounded on ${r.body.name}` });
+  }
+
   exitShip() {
     const ship = this.ship;
     if (ship.mode !== 'landed') {
@@ -847,6 +892,11 @@ export class Game {
   enterShip() {
     if (this.walker.distanceToShip() > 13) {
       this.hud.toast('Too far', 'Walk back to the ship to board it.', 'warn', 3);
+      return;
+    }
+    if (this.repair) {
+      this.hud.toast('Repairs in progress', `The ship can fly again in ${repairClock(this.repair.left)}.`, 'warn', 3);
+      this.audio.play('denied');
       return;
     }
     this.onFoot = false;
@@ -935,6 +985,7 @@ export class Game {
       this.suit.recharge(dt);
     }
     this.warnings = [...suitWarn, ...shipWarn];
+    if (this.state === 'play') this.updateRepair(dt);
     // The black hole: warnings as you near the horizon, then the other side.
     if (body.kind === 'blackhole') {
       const r = dist / body.radius;
@@ -1288,7 +1339,7 @@ export class Game {
     if (this.state === 'play') {
       if (this.onFoot) {
         if (this.life?.nearCrate()) prompt = '<kbd>E</kbd> Open supply crate';
-        else if (this.walker.distanceToShip() < 13) prompt = '<kbd>E</kbd> Board ship';
+        else if (this.walker.distanceToShip() < 13) prompt = this.repair ? `Repair drones at work · ${repairClock(this.repair.left)}` : '<kbd>E</kbd> Board ship';
       } else if (ship.mode === 'landed') {
         prompt = '<kbd>E</kbd> Step outside · <kbd>Space</kbd> take off';
       } else if (ship.mode === 'flight' && body.def.terrain && telemetry.ground < 1500 && !ship.autopilot) {
