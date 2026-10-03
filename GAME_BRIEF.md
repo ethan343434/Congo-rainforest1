@@ -240,8 +240,13 @@ Give the game an actual point — the player must find their way out of the maze
 ## 7. Controls & HUD
 
 - **WASD** move, **mouse** look, **Shift** sprint (5s burst, 10s cooldown — see
-  §6), **Space** jump (optional), **F** toggle flashlight, **E** interact/pick
-  up, **Esc** release mouse / pause.
+  §6), **Space** jump, **F** toggle flashlight, **E** interact/pick up, **Esc**
+  release mouse / pause.
+- **Jumping** is a real mechanic: **Space** makes the player hop with simple
+  gravity (rise, then fall back to the ground, no double-jump). Use it to clear
+  low obstacles like **fallen logs, rocks, and riverbank edges**, and to add a
+  bit of movement feel. The player can't jump over the dense tree maze walls —
+  those stay impassable — so jumping helps traversal without breaking the maze.
 - Document the control scheme both on the start screen and in a corner of the
   HUD or a toggleable help overlay.
 - **HUD:** health bar, **sprint meter/cooldown bar** (showing the 5s burst and
@@ -285,7 +290,7 @@ src/
   main.js           # bootstrap, game loop, state machine (menu/playing/cutscene/win/lose)
   maze.js           # maze generation (grid) + layout data, start/exit cells
   world.js          # terrain, trees (instanced) dressing the maze, river, village, crash site
-  player.js         # first-person controller, movement, collision, stats, flashlight
+  player.js         # first-person controller, movement, jump+gravity, collision, stats, flashlight
   animals.js        # animal models + AI state machines + spawner
   dayNight.js       # clock, sun light, sky/fog interpolation, dim-lighting curve
   ui.js             # HUD, menus, objective tracking, screens
@@ -298,8 +303,8 @@ Adjust if you have a cleaner structure, but keep concerns separated.
 ## 11. Build order (do this in sequence so there's always a runnable game)
 
 1. Boot a Three.js scene: ground, dim sky, fog, a first-person camera that moves
-   with WASD + mouse-look, and the **flashlight** (camera spotlight). **Verify it
-   runs.**
+   with WASD + mouse-look, **jump + gravity**, and the **flashlight** (camera
+   spotlight). **Verify it runs.**
 2. Generate the **maze layout** with the crash site at the center, build its
    walls from instanced trees with a walkable path and collision, braid it so
    wrong paths loop back, and place the **native village** at the far end of the
