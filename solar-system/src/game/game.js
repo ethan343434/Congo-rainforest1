@@ -208,6 +208,15 @@ export class Game {
     $('resume-btn').addEventListener('click', () => this.resume());
     $('respawn-btn').addEventListener('click', () => this.respawnAfterDeath());
     $('respawn-btn').textContent = this.sys.respawnLabel;
+    $('reset-btn').addEventListener('click', () => this.resetGame());
+    // Reset from the pause menu asks for a second click.
+    const pr = $('pause-reset-btn');
+    pr.addEventListener('click', () => {
+      if (pr.dataset.armed) { delete pr.dataset.armed; pr.textContent = 'Reset game'; this.resetGame(); return; }
+      pr.dataset.armed = '1';
+      pr.textContent = 'Click again to reset everything';
+      setTimeout(() => { delete pr.dataset.armed; pr.textContent = 'Reset game'; }, 3000);
+    });
     const home = $('home-btn');
     if (home) {
       home.hidden = !this.sys.homePage;
@@ -260,11 +269,35 @@ export class Game {
     this.deadAt = this.clock;
     $('dead-title').textContent = title;
     $('dead-cause').textContent = cause;
+    const T = Math.floor(this.playTime);
+    const n = this.visited.size;
+    $('dead-stats').textContent = `Flight time ${Math.floor(T / 60)}:${String(T % 60).padStart(2, '0')} · ${n} world${n === 1 ? '' : 's'} visited`;
     this.input.releaseLock();
+  }
+
+  /** Start over: a new ship at the start, the universe clock back to now, progress cleared. */
+  resetGame() {
+    for (const id of ['dead', 'pause']) $(id).classList.remove('visible');
+    this.hud.show(true);
+    $('help').hidden = true;
+    $('info').hidden = true;
+    this.simTime = Date.now();
+    this.eph.update(this.simTime);
+    this.playTime = 0;
+    this.visited.clear();
+    if (this.echoHistory) this.echoHistory.length = 0;
+    if (this.life) { this.life.dispose(); this.life = null; }
+    this.lightsOn = false;
+    this.respawn();
+    this.state = 'play';
+    this.audio.start();
+    this.input.requestLock();
+    this.hud.toast('Game reset', this.sys.welcome[1], '', 9);
   }
 
   respawnAfterDeath() {
     $('dead').classList.remove('visible');
+    this.hud.show(true);
     this.respawn();
     this.state = 'play';
     this.input.requestLock();
@@ -486,7 +519,10 @@ export class Game {
     this.updateVisuals(dt);
     this.updateHud(dt);
     this.updateAudio(dt);
-    if (this.state === 'dead' && this.clock - this.deadAt > 1.8) $('dead').classList.add('visible');
+    if (this.state === 'dead' && this.clock - this.deadAt > 1.8 && !$('dead').classList.contains('visible')) {
+      $('dead').classList.add('visible');
+      this.hud.show(false); // keep toasts from covering the cause of death
+    }
     this.engine.render();
     if (this.state === 'play') this.engine.governQuality(dtReal * 1000, now / 1000);
   }
@@ -499,6 +535,7 @@ export class Game {
       }
       if (this.state === 'dead') {
         if (code === 'Enter' && $('dead').classList.contains('visible')) this.respawnAfterDeath();
+        if (code === 'KeyR' && $('dead').classList.contains('visible')) this.resetGame();
         continue;
       }
       if (code === 'Escape') {

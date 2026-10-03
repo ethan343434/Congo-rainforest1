@@ -19,6 +19,8 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   crushes you if you sink. On foot, your suit's life support and hazard protection drain.
   Crash into a rocky planet or moon and the ship survives as a wreck: you are thrown
   clear and stay grounded for 2 minutes while its repair drones fix it.
+  When you die you can respawn (`Enter`) or reset the whole game (`R`): the universe
+  clock goes back to now and your progress is cleared. The pause menu has Reset too.
   Each body's scanner entry has a survivability rating: Lethal, Hostile, Suit required or
   Habitable.
 - **Warp drive.** Press `K` and you jump straight to the selected target. You arrive on
