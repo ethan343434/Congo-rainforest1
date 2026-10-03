@@ -163,6 +163,8 @@ export class WorldRenderer {
     const target = ctx.exposureTarget ?? Math.min(2.4 * boost, Math.max(0.35, (boost / Math.pow(intensity, 0.55)) * glareStop));
     this.exposure += (target - this.exposure) * Math.min(1, ctx.dt * 1.5);
     eng.renderer.toneMappingExposure = this.exposure;
-    this.sky.update(ctx.skyFade ?? 1);
+    // Near the Sun its glare drowns out the stars (as in SOHO/Parker images).
+    const glareFade = 1 / (1 + ((sunAngle * sunVisAll) / 0.03) ** 2);
+    this.sky.update((ctx.skyFade ?? 1) * glareFade);
   }
 }

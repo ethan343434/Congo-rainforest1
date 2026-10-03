@@ -44,7 +44,7 @@ export class CameraRig {
     this.smoothQuat.slerp(ship.quat, 1 - Math.exp(-dt * lag));
     let targetFov = 62;
     if (this.mode === 'cockpit') {
-      this.world.copy(shipWorld).add(new THREE.Vector3(0, 0.95, -2.9).applyQuaternion(ship.quat));
+      this.world.copy(shipWorld).add(new THREE.Vector3(0, 1.1, -2.75).applyQuaternion(ship.quat));
       this.quat.copy(ship.quat);
     } else {
       const pull = opts.pulse ? 1.35 : 1;

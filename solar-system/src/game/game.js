@@ -970,6 +970,9 @@ export class Game {
     // Ship model.
     const sm = this.shipModel;
     sm.root.visible = this.ship.mode !== 'destroyed';
+    const cockpit = !this.onFoot && this.rig.mode === 'cockpit' && this.state !== 'menu';
+    const frame = $('cockpit-frame');
+    if (frame && frame.hidden === cockpit) frame.hidden = !cockpit;
     sm.root.position.copy(shipRel);
     sm.root.quaternion.copy(this.ship.quat);
     const t = this.ship.telemetry;

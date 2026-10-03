@@ -163,6 +163,19 @@
     </div>
   </div>
 
+  <!-- Canopy frame for the cockpit camera -->
+  <div id="cockpit-frame" hidden aria-hidden="true"><svg viewBox="0 0 1600 900" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="dash" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1b2026" /><stop offset="1" stop-color="#07090c" />
+      </linearGradient>
+    </defs>
+    <path d="M0 900 L0 760 Q 800 700 1600 760 L1600 900 Z" fill="url(#dash)" />
+    <path d="M520 742 L1080 742" stroke="#2a8fb0" stroke-width="3" opacity="0.7" />
+    <path d="M140 900 Q 210 420 560 -10" stroke="#14181d" stroke-width="22" fill="none" />
+    <path d="M1460 900 Q 1390 420 1040 -10" stroke="#14181d" stroke-width="22" fill="none" />
+    <path d="M0 140 Q 800 40 1600 140" stroke="#14181d" stroke-width="14" fill="none" opacity="0.9" />
+  </svg></div>
   <div id="heat-vignette" aria-hidden="true"></div>
   <div id="damage-flash" aria-hidden="true"></div>
   <div id="fade"></div>
