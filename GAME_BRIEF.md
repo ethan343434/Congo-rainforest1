@@ -44,7 +44,8 @@ plays is a success. Prioritize accordingly.
   world from Three.js primitives (boxes, cylinders, cones, planes) and
   procedural placement. Trees = tapered cylinder trunk + stacked cone canopy;
   animals = simple primitive-based models. This keeps the game self-contained
-  and guaranteed to load. Keep models low-poly and readable.
+  and guaranteed to load. Target **medium-poly** models and readable shapes (see
+  §8.5 Graphics & art direction).
 
 Rationale for this stack: it is the lowest-friction path to a 3D game that is
 guaranteed to run for the user without toolchain setup. If you believe a
@@ -261,6 +262,40 @@ sounds if practical: ambient jungle loop, a day/night insect shift, animal
 cues, footsteps, an attack/hurt sound, and a pickup chime. If sourcing audio
 adds any risk to "it just runs," skip it and leave hooks/comments for where
 sound would attach. Never block the game from loading on an audio asset.
+
+## 8.5 Graphics & art direction
+
+**Target: medium-poly, built entirely from procedural Three.js geometry (no
+downloaded models or textures).** Aim higher than blocky "low-poly" — models
+should have enough segments and parts to read clearly as what they are — while
+staying fully asset-free so the game is guaranteed to load.
+
+- **Models:** build each creature and prop from several combined primitives with
+  a moderate segment count (e.g. cylinders/cones/spheres at ~8–16 segments,
+  capsules for bodies). A croc gets a body + tapered snout + legs + tail
+  segments + visible teeth; a tree gets a tapered multi-section trunk + layered
+  canopy + a few hanging vines — not just a box. Round, varied silhouettes over
+  flat facets, but keep the polygon budget sane.
+- **Materials:** `MeshStandardMaterial` (low metalness, varied roughness) so
+  surfaces catch the flashlight and the sun believably. Use a cohesive palette
+  of greens/browns/earth tones; add variety with vertex colors or per-instance
+  color tints rather than image textures. Smooth shading on organic models,
+  flat shading only where it reads better (rocks, wreckage).
+- **Atmosphere carries the look.** Even at medium-poly, the mood comes from
+  lighting and fog, not polygon count: the flashlight spotlight cone, colored
+  fog that shifts with day/night, animal **eyeshine** (glowing points in the
+  dark), the village firelight glow, and soft shadows where the frame rate
+  allows. Spend effort here.
+- **Cheap polish that punches above its weight:** subtle camera bob while
+  walking, a screen-edge red flash when taking damage, a vignette, a faint
+  flashlight flicker, and gentle swaying foliage.
+- **Post-processing:** optional, only if stable — a light bloom on the flashlight
+  and village fire, plus a vignette. Skip anything heavier.
+- **Performance guardrail:** medium-poly multiplies vertex cost, so **instance
+  everything repeated** (trees, foliage, rocks), share geometries/materials, and
+  keep draw distance short (the fog hides it). If the frame rate suffers, drop
+  model segments or instance counts before sacrificing the atmosphere. A smooth
+  medium-poly world beats a stuttering high-detail one.
 
 ## 9. Non-negotiable constraints
 
