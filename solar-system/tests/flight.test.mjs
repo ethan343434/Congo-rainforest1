@@ -166,6 +166,51 @@ for (const [from, to, maxTime] of [['earth', 'moon', 40], ['earth', 'mars', 90],
   check('Sphere-of-influence handover is seamless', switched && maxJump < 4000 / 60 + 1100 / 60 + 50, `largest step beyond orbital motion ${maxJump.toFixed(1)} m`);
 }
 
+// 11. Cruise engines: 0.9 c in open space, never more, and they slow you on approach.
+{
+  const c = setup('earth', 1.9e6, { dir: new THREE.Vector3(0, 0, 1) });
+  c.ship.lookAt(c.ship.worldPos().add(new THREE.Vector3(1, 0, 0).multiplyScalar(1e12)));
+  c.ship.input.thrust = 1;
+  let tReach = null, vMax = 0;
+  run(c, 40, 1 / 60, (t) => {
+    const v = c.ship.vel.length();
+    vMax = Math.max(vMax, v);
+    if (tReach === null && v > 0.899 * C_LIGHT) tReach = t;
+  });
+  check('Holding W reaches 0.9 c within 25 s', tReach !== null && tReach < 25, `${tReach?.toFixed(1)} s`);
+  check('Speed never exceeds 0.9 c', vMax <= 0.9 * C_LIGHT + 1, `${(vMax / C_LIGHT).toFixed(4)} c`);
+  c.ship.input.thrust = 0;
+  const t0 = c.t;
+  run(c, 60, 1 / 60, () => c.ship.vel.length() > 50);
+  check('Flight assist brakes from 0.9 c within 30 s', c.t - t0 < 30, `${(c.t - t0).toFixed(1)} s`);
+
+  const m = setup('earth', 1.9e6, { fa: false });
+  const moon = m.eph.byId.moon;
+  m.ship.input.thrust = 1;
+  m.ship.input.boost = true;
+  let minClear = Infinity, tArrive = null, vAt50 = null;
+  run(m, 120, 1 / 60, (t) => {
+    m.ship.lookAt(moon.pos);
+    const clear = m.ship.surfaceInfo(moon, m.ship.worldPos().sub(moon.pos)).ground;
+    minClear = Math.min(minClear, clear);
+    if (vAt50 === null && clear < 50000) vAt50 = m.ship.vel.clone().add(m.ship.parent.vel).sub(moon.vel).length();
+    if (clear < 1000) { tArrive = t; return false; }
+    return m.ship.mode === 'flight';
+  });
+  const v = m.ship.vel.clone().add(m.ship.parent.vel).sub(moon.vel).length();
+  check('Full-throttle approach slows down before reaching the Moon', minClear > 0 && vAt50 < 51000, `${(vAt50 / 1000).toFixed(2)} km/s at 50 km`);
+  check('…and arrives at landing speed, quickly', m.ship.mode === 'flight' && v < 1100 && tArrive < 60, `${v.toFixed(0)} m/s at 1 km after ${tArrive?.toFixed(1)} s`);
+  // Coast down to the ground with no thrust: the limiter holds 200 m/s at most.
+  m.ship.input.thrust = 0;
+  m.ship.input.boost = false;
+  let vLow = null;
+  run(m, 30, 1 / 60, () => {
+    const clear = m.ship.surfaceInfo(moon, m.ship.worldPos().sub(moon.pos)).ground;
+    if (clear < 150) { vLow = m.ship.vel.clone().add(m.ship.parent.vel).sub(moon.vel).length(); return false; }
+  });
+  check('Over airless ground the limiter slows you to 200 m/s', vLow !== null && vLow <= 201, `${vLow?.toFixed(0)} m/s below 150 m`);
+}
+
 console.log(results.join('\n'));
 console.log(failures ? `\n${failures} failure(s)` : '\nAll flight tests passed.');
 process.exit(failures ? 1 : 0);

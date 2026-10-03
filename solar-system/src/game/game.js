@@ -10,7 +10,7 @@
 // =============================================================================
 import * as THREE from 'three';
 import { SYSTEMS } from '../data/systems.js';
-import { G0, KELVIN, STAR, formatDistance, formatSpeed } from '../constants.js';
+import { G0, KELVIN, STAR, C_LIGHT, formatDistance, formatSpeed } from '../constants.js';
 import { Ephemeris } from '../sim/ephemeris.js';
 import { ShipSim, SHIP, smoothstep } from '../sim/ship.js';
 import { ShipSystems, SuitSystems } from '../sim/hazards.js';
@@ -1188,6 +1188,11 @@ export class Game {
     });
     this.heatGlow = heat;
     this.updateBlackHole(dt, origin);
+    // Special relativity: at 0.9 c your clock runs 2.3× slower than the universe's.
+    if (!this.onFoot && this.ship.mode === 'flight') {
+      const beta = Math.min(0.9, this.ship.vel.length() / C_LIGHT);
+      this.dilation *= 1 / Math.sqrt(1 - beta * beta);
+    }
 
     // Astronaut.
     if (this.onFoot) {
@@ -1403,7 +1408,7 @@ export class Game {
       [['Esc'], 'Pause', true],
     ] : [
       [['Mouse'], 'Steer (click the view first)', flying],
-      [['W', 'S'], 'Thrust forward / reverse', !landed],
+      [['W', 'S'], 'Thrust (hold in space: up to 0.9 c)', !landed],
       [['A', 'D'], 'Roll', flying],
       [['Space', 'C'], landed ? 'Take off / thrust down' : 'Thrust up / down', true],
       [['Shift'], 'Boost', !landed],

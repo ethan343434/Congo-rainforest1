@@ -12,6 +12,12 @@
 // * Pulse drive: faster than light, its speed proportional to your distance
 //   from the nearest surface, so you can cross the system in under a minute
 //   and still never ram a planet. It cuts out inside gravity wells/atmospheres.
+// * Cruise engines: away from planets the main engines spool up
+//   exponentially, so holding W takes you from rest to the 0.9 c ceiling in
+//   about 20 s (14 s with boost). Near a surface (or the top of an atmosphere)
+//   speed is limited in proportion to the clearance, down to 200 m/s over
+//   airless ground, so you arrive ready to land and never pass through a
+//   planet between two frames.
 // * Autopilot: aligns, pulses, routes around the Sun, and drops you out on the
 //   sunlit side of the target.
 // * Landing: gentle touchdowns on solid ground; hard ones damage or destroy.
@@ -35,6 +41,14 @@ export const SHIP = {
   safeTouchdown: 4.5,   // m/s vertical
   safeSlide: 4.0,       // m/s horizontal
   crashSpeed: 28,       // m/s: above this, the ship is destroyed
+  cruiseRate: 1.1,      // e-folds per second of engine spool-up
+  cruiseMaxMult: 1e6,   // spooled thrust multiplier ceiling (32 m/s² → 3.2e7 m/s²)
+  cruiseVScale: 40,     // above natural speeds, thrust grows by 1× per 40 m/s
+  cruiseNear: 2000,     // m: no cruise boost closer than this to a surface
+  cruiseFar: 30000,     // m: full cruise boost beyond this
+  cruiseK: 1.0,         // speed limit per metre of clearance (1/s)
+  landingSpeed: 200,    // m/s: the limiter slows you to this over airless ground
+  cruiseMax: 0.9 * C_LIGHT,
   pulseK: 0.75,         // pulse speed per metre of clearance (1/s)
   pulseMax: 2400 * C_LIGHT,
   pulseSpool: 1.2,      // s
@@ -66,6 +80,7 @@ export class ShipSim {
     this.autopilot = null;
     this.pulseSpeed = 0;
     this.spool = 0;                 // pulse spool-up progress (s)
+    this.cruise = 0;                // cruise-engine spool (s)
     this.input = { thrust: 0, lift: 0, strafe: 0, pitch: 0, yaw: 0, roll: 0, boost: false, brake: false };
     this.telemetry = {
       altitude: Infinity, ground: Infinity, vSpeed: 0, speed: 0, density: 0, pressure: 0, temperature: null,
@@ -102,6 +117,7 @@ export class ShipSim {
     this.landed = null;
     this.autopilot = null;
     this.pulseSpeed = 0;
+    this.cruise = 0;
     if (lookAt) this.lookAt(lookAt);
   }
 
@@ -130,6 +146,30 @@ export class ShipSim {
       if (d < bestD) { bestD = d; best = b; }
     }
     return { body: best, distance: bestD };
+  }
+
+  /**
+   * Cruise envelope: clearance to the nearest surface (or atmosphere top) and
+   * the tightest speed limit over all bodies. Each body allows cruiseK × its
+   * clearance, but never less than landingSpeed over airless ground (so you
+   * arrive ready to land) or what gravity alone could produce in an
+   * atmosphere or near the Sun (so entries and plunges stay real). Black
+   * holes impose no limit. Speeds are measured relative to each body.
+   */
+  cruiseEnvelope(worldPos, info) {
+    const env = { clear: Infinity, limit: Infinity, body: null };
+    for (const b of this.eph.bodies) {
+      if (b.kind === 'blackhole') continue;
+      const dist = b.pos.distanceTo(worldPos);
+      const natural = b.atmosphere || b === this.eph.sun;
+      let h = dist - b.maxRadius - (b.atmosphere ? b.atmosphere.top : 0);
+      if (b === this.parent && !natural) h = info.ground;
+      const floor = natural ? 1.2 * Math.sqrt((2 * b.GM) / dist) + 1000 : SHIP.landingSpeed;
+      const limit = Math.max(floor, SHIP.cruiseK * h);
+      if (h < env.clear) env.clear = h;
+      if (limit < env.limit) { env.limit = limit; env.body = b; }
+    }
+    return env;
   }
 
   /** Local "up", altitude above the reference surface and above terrain. */
@@ -337,13 +377,23 @@ export class ShipSim {
       }
     }
 
+    // Cruise engines: spool up while working hard away from surfaces, and
+    // stay strong while moving faster than anything gravity could explain.
+    const assist = this.flightAssist || inp.brake || (this.autopilot && this.autopilot.phase === 'land');
+    const env = this.cruiseEnvelope(this.worldPos(new THREE.Vector3()), info);
+    const cruiseW = smoothstep(SHIP.cruiseNear, SHIP.cruiseFar, env.clear);
+    const vNatural = 1.2 * Math.sqrt((2 * body.GM) / d) + 1000;
+    const errMag = this.vel.distanceTo(vRef);
+    const working = cruiseW > 0 && (inp.thrust !== 0 || inp.brake || (assist && errMag > 50));
+    this.cruise = working ? Math.min(this.cruise + dt, 30) : Math.max(0, this.cruise - 3 * dt);
+    const mult = 1 + cruiseW * (Math.min(SHIP.cruiseMaxMult, Math.max(Math.exp(SHIP.cruiseRate * this.cruise), 1 + Math.max(0, errMag - vNatural) / SHIP.cruiseVScale)) - 1);
+
     // Thrust in the ship frame (x right, y up, z back).
-    const boost = inp.boost ? SHIP.boost : 1;
+    const boost = (inp.boost ? SHIP.boost : 1) * mult;
     const caps = { x: SHIP.liftAccel * boost, y: SHIP.liftAccel * boost, zf: SHIP.mainAccel * boost, zb: SHIP.reverseAccel * boost };
     const cmd = new THREE.Vector3(inp.strafe, inp.lift, -inp.thrust);
     const qInv = this.quat.clone().invert();
     let local = new THREE.Vector3();
-    const assist = this.flightAssist || inp.brake || (this.autopilot && this.autopilot.phase === 'land');
     if (assist) {
       // Desired: kill velocity relative to the reference frame and cancel gravity.
       const err = this.vel.clone().sub(vRef);
@@ -373,6 +423,22 @@ export class ShipSim {
 
     // Semi-implicit Euler.
     this.vel.addScaledVector(accel, dt);
+    // Speed limit: 0.9 c, and proportional to clearance near planets (never
+    // below what gravity alone could produce).
+    this.telemetry.speedLimited = false;
+    if (env.body) {
+      const lb = env.body;
+      const vb = _w.copy(this.vel).add(body.vel).sub(lb.vel); // velocity relative to the limiting body
+      const sb = vb.length();
+      if (sb > env.limit) {
+        vb.multiplyScalar(env.limit / sb);
+        this.vel.copy(vb).add(lb.vel).sub(body.vel);
+        this.telemetry.speedLimited = env.limit < SHIP.cruiseMax;
+      }
+    }
+    const speed = this.vel.length();
+    if (speed > SHIP.cruiseMax) this.vel.multiplyScalar(SHIP.cruiseMax / speed);
+    this.telemetry.cruise = mult;
     this.rel.addScaledVector(this.vel, dt);
 
     // Earth's defence barrier.
