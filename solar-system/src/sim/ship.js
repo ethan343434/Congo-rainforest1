@@ -55,7 +55,7 @@ export function smoothstep(a, b, x) {
 export class ShipSim {
   constructor(eph) {
     this.eph = eph;
-    this.parent = eph.byId.earth;
+    this.parent = eph.byId.earth || eph.sun;
     this.rel = new THREE.Vector3(); // position relative to parent centre (world axes)
     this.vel = new THREE.Vector3(); // velocity relative to parent (inertial)
     this.quat = new THREE.Quaternion();

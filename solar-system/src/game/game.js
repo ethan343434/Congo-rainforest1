@@ -9,8 +9,8 @@
 // each frame the universe is drawn relative to the camera (floating origin).
 // =============================================================================
 import * as THREE from 'three';
-import { BODIES, NAV_ORDER } from '../data/bodies.js';
-import { G0, KELVIN, formatDistance, formatSpeed } from '../constants.js';
+import { SYSTEMS } from '../data/systems.js';
+import { G0, KELVIN, STAR, formatDistance, formatSpeed } from '../constants.js';
 import { Ephemeris } from '../sim/ephemeris.js';
 import { ShipSim, SHIP, smoothstep } from '../sim/ship.js';
 import { ShipSystems, SuitSystems } from '../sim/hazards.js';
@@ -31,6 +31,7 @@ import { CameraRig } from './cameraRig.js';
 import { Input } from './input.js';
 import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
+import { ProximaLife } from './proximaLife.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -47,10 +48,11 @@ const GROUND_LOOK = {
   // Huygens: dark orange-brown plains strewn with rounded ice pebbles.
   titan: { mapContrast: 0.22, baseColor: [0.17, 0.1, 0.05], slopeBright: 0.1 },
   io: { slopeBright: 0.1 },
+  proxb: { slopeBright: 0.18 },
 };
 
 // Optical "visibility" of the air near the ground (m) for aerial perspective.
-const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3 };
+const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3, proxb: 55e3 };
 
 /** Linear scene colour → final on-screen colour (three.js ACES filmic + sRGB). */
 function toDisplay(rgb, exposure) {
@@ -67,11 +69,13 @@ function toDisplay(rgb, exposure) {
 }
 
 export class Game {
-  constructor() {
+  constructor(systemId = 'sol') {
+    this.sys = SYSTEMS[systemId] || SYSTEMS.sol;
+    Object.assign(STAR, this.sys.star);
     this.engine = new Engine($('app'));
     const eng = this.engine;
     this.clock = 0;
-    this.eph = new Ephemeris(BODIES);
+    this.eph = new Ephemeris(this.sys.bodies);
     this.simTime = Date.now();
     this.eph.update(this.simTime);
     this.assets = new Assets(eng.renderer);
@@ -110,7 +114,7 @@ export class Game {
 
     this.rig = new CameraRig(eng.camera);
     this.input = new Input(eng.canvas);
-    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true));
+    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), this.sys.nav);
     this.audio = new AudioEngine();
 
     this.workers = new TerrainWorkers();
@@ -164,7 +168,7 @@ export class Game {
       for (let i = 0; i < d.width; i++) alpha[i] = Math.round(d.data[i] * 255);
       this.ringTex = { width: d.width, alpha };
     }).catch(() => {});
-    this.prepareTerrain(this.eph.byId.moon);
+    this.prepareTerrain(this.eph.byId[this.sys.preload]);
     this.respawn();
     this.state = 'menu';
     $('loading').classList.remove('visible');
@@ -188,6 +192,12 @@ export class Game {
     $('start-btn').addEventListener('click', () => this.start());
     $('resume-btn').addEventListener('click', () => this.resume());
     $('respawn-btn').addEventListener('click', () => this.respawnAfterDeath());
+    $('respawn-btn').textContent = this.sys.respawnLabel;
+    const home = $('home-btn');
+    if (home) {
+      home.hidden = !this.sys.homePage;
+      home.addEventListener('click', () => { location.href = this.sys.homePage; });
+    }
     document.addEventListener('click', (e) => {
       const close = e.target.closest?.('[data-close]');
       if (close) $(close.dataset.close).hidden = true;
@@ -209,7 +219,7 @@ export class Game {
     this.hud.show(true);
     this.input.enabled = true;
     this.input.requestLock();
-    this.hud.toast('Welcome aboard', 'Target: the Moon. Press G for autopilot, or J for the pulse drive. H shows all controls.', '', 9);
+    this.hud.toast(this.sys.welcome[0], this.sys.welcome[1], '', 9);
   }
 
   pause() {
@@ -243,24 +253,31 @@ export class Game {
     this.respawn();
     this.state = 'play';
     this.input.requestLock();
-    this.hud.toast('Respawned near Earth', 'A new ship is waiting in high orbit.', '', 6);
+    this.hud.toast(this.sys.respawnLabel.replace('Respawn', 'Respawned'), 'A new ship is waiting in high orbit.', '', 6);
   }
 
-  /** New ship in high orbit over Earth's day side, Moon targeted. */
+  /** New ship in high orbit (over Earth's day side, or Proxima b's twilight ring). */
   respawn() {
     const eph = this.eph;
-    const earth = eph.byId.earth, moon = eph.byId.moon, sun = eph.sun;
-    const toSun = sun.pos.clone().sub(earth.pos).normalize();
-    const side = new THREE.Vector3().crossVectors(earth.pole, toSun).normalize();
-    const up = toSun.clone().multiplyScalar(0.78).addScaledVector(side, 0.5).addScaledVector(earth.pole, 0.3).normalize();
-    const alt = 1900e3;
+    const S = this.sys.start;
+    const earth = eph.byId[S.body], moon = eph.byId[S.target], sun = eph.sun;
+    let up;
+    if (S.terminator) {
+      // Over the twilight ring of a tidally locked world (the star is on local +X).
+      up = earth.toWorld(new THREE.Vector3(0.12, 0.3, -0.95).normalize());
+    } else {
+      const toSun = sun.pos.clone().sub(earth.pos).normalize();
+      const side = new THREE.Vector3().crossVectors(earth.pole, toSun).normalize();
+      up = toSun.clone().multiplyScalar(0.78).addScaledVector(side, 0.5).addScaledVector(earth.pole, 0.3).normalize();
+    }
+    const alt = S.altitude;
     const pos = earth.pos.clone().addScaledVector(up, earth.radius + alt);
     this.ship.placeNear(earth, pos);
     this.ship.mode = 'flight';
     this.ship.flightAssist = true;
-    // Level towards the Moon's bearing, then nose down so Earth's limb fills
-    // the lower half of the view (the horizon dips ~39° at this height).
-    const toMoon = moon.pos.clone().sub(pos);
+    // Level towards the target's (or the star's) bearing, then nose down so the
+    // planet's limb fills the lower half of the view.
+    const toMoon = (S.terminator ? sun.pos : moon.pos).clone().sub(pos);
     const level = toMoon.clone().addScaledVector(up, -toMoon.dot(up)).normalize();
     const right = new THREE.Vector3().crossVectors(level, up).normalize();
     const fwd = level.clone().applyAxisAngle(right, -0.42);
@@ -299,7 +316,7 @@ export class Game {
   cycleTarget() {
     const cur = this.currentBody();
     const sys = cur.kind === 'moon' ? cur.parent : cur;
-    const list = NAV_ORDER.map((id) => this.eph.byId[id]);
+    const list = this.sys.nav.map((id) => this.eph.byId[id]);
     const moons = [...sys.children].sort((a, b) => a.def.ephem.a - b.def.ephem.a);
     const i = list.indexOf(sys);
     list.splice(i + 1, 0, ...moons);
@@ -494,7 +511,9 @@ export class Game {
           break;
         case 'KeyL': if (!this.onFoot) ship.autoLand(); break;
         case 'KeyK': this.startWarp(); break;
-        case 'KeyE': if (this.onFoot) this.enterShip(); else this.exitShip(); break;
+        case 'KeyE':
+          if (this.onFoot) { if (!this.life?.use()) this.enterShip(); } else this.exitShip();
+          break;
         case 'KeyV': this.rig.toggleView(this.onFoot); this.audio.play('blip'); break;
         case 'KeyI': this.toggleScanner(); break;
         case 'KeyM': this.audio.setMuted(!this.audio.muted); this.hud.toast('Sound', this.audio.muted ? 'Muted' : 'On', '', 2); break;
@@ -507,7 +526,7 @@ export class Game {
         case 'Space': if (this.onFoot) this.walker.input.jump = true; break;
         default:
           if (code.startsWith('Digit')) {
-            const id = NAV_ORDER[Number(code.slice(5))];
+            const id = this.sys.nav[Number(code.slice(5))];
             if (id) this.selectTarget(this.eph.byId[id], true);
           }
       }
@@ -711,12 +730,13 @@ export class Game {
     this.hud.show(false);
     $('void').classList.add('visible');
     this.audio.play('pulse-start');
-    setTimeout(() => { location.href = 'void.html'; }, 3200);
+    setTimeout(() => { location.href = this.sys.exitPage || 'index.html'; }, 3200);
   }
 
   // ---- Black hole: tidal stretching, time dilation and echoes of your past self -------------
   updateBlackHole(dt, origin) {
     const bh = this.eph.byId.blackhole;
+    if (!bh) { this.dilation = 1; return; }
     const R = bh.radius;
     const shipW = this.ship.worldPos(new THREE.Vector3());
     const r = Math.max(1.0001, shipW.distanceTo(bh.pos) / R);
@@ -804,6 +824,7 @@ export class Game {
     this.onFoot = true;
     this.astro.root.visible = true;
     this.audio.play('door');
+    if (this.life && body === this.life.body) this.life.onExitShip();
     const s = body.def.survivability;
     this.hud.toast(`On ${body.name}`, `${s ? `${s.rating}: ${s.hazards?.[0] || s.summary}. ` : ''}Life support ${Math.ceil(this.suit.lifeSupport)}%. Return with E.`, '', 7);
   }
@@ -884,10 +905,17 @@ export class Game {
       temp = t.temperature;
       pressure = t.pressure;
     }
+    // Tidally locked "eyeball" world: hot under the star, frozen on the far side.
+    if (body.atmosphere?.eyeball && temp !== null && temp !== undefined && body.def.temps) {
+      const x = body.toLocal(up.clone()).x;
+      const T = body.def.temps;
+      const ground = T.nightK + (T.dayK - T.nightK) * smoothstep(-0.45, 0.85, x);
+      temp = ground + (temp - body.atmosphere.tempK);
+    }
     this.env = { temp, pressure, radiation, solarFlux: flux };
     let suitWarn = [];
     if (this.onFoot) {
-      suitWarn = this.suit.update({ dt, now, temp, pressure, radiation, breathable: false });
+      suitWarn = this.suit.update({ dt, now, temp, pressure, radiation, breathable: !!body.atmosphere?.breathable });
     } else {
       this.suit.recharge(dt);
     }
@@ -1153,12 +1181,18 @@ export class Game {
       const a = this.astro;
       a.root.visible = this.rig.footMode !== 'first';
       a.root.position.subVectors(f.pos, origin);
-      const facing = w.facing.clone().applyQuaternion(w.body.quat);
+      const facing = (this.life?.armed ? w.cameraForward.clone() : w.facing.clone().applyQuaternion(w.body.quat));
       facing.addScaledVector(f.up, -facing.dot(f.up)).normalize();
       const right = new THREE.Vector3().crossVectors(f.up, facing).normalize();
       _m.makeBasis(right, f.up, facing);
       a.root.quaternion.setFromRotationMatrix(_m);
       a.update({ speed: w.speed, run: w.input.run, onGround: w.onGround, jetting: w.jetting, dt });
+    }
+
+    // Proxima b's wildlife, crates, plants and the laser rifle.
+    if (this.sys.id === 'proxima') {
+      if (!this.life && this.eph.byId.proxb) this.life = new ProximaLife(this, this.eph.byId.proxb);
+      if (this.state === 'play' || this.state === 'paused') this.life?.update(this.state === 'play' ? dt : 0);
     }
 
     // Speed dust: motion relative to the nearest world's surface.
@@ -1228,11 +1262,13 @@ export class Game {
       const world = s.local.clone().applyQuaternion(body.quat).add(body.pos);
       landmarks.push({ name: s.lm.name.split(' · ')[0], world, distance: world.distanceTo(P) });
     }
+    if (this.life) landmarks.push(...this.life.landmarks());
     // Prompt.
     let prompt = null;
     if (this.state === 'play') {
       if (this.onFoot) {
-        if (this.walker.distanceToShip() < 13) prompt = '<kbd>E</kbd> Board ship';
+        if (this.life?.nearCrate()) prompt = '<kbd>E</kbd> Open supply crate';
+        else if (this.walker.distanceToShip() < 13) prompt = '<kbd>E</kbd> Board ship';
       } else if (ship.mode === 'landed') {
         prompt = '<kbd>E</kbd> Step outside · <kbd>Space</kbd> take off';
       } else if (ship.mode === 'flight' && body.def.terrain && telemetry.ground < 1500 && !ship.autopilot) {
@@ -1272,6 +1308,14 @@ export class Game {
       fps: this.engine.fps,
       qualityName: this.engine.quality.name,
     });
+    // Laser rifle energy.
+    const lg = $('g-laser');
+    if (lg) {
+      const armed = !!this.life?.armed && this.onFoot;
+      lg.hidden = !armed;
+      if (armed) this.hud.gauge('g-laser', this.life.weapon.energy, `${Math.floor(this.life.weapon.energy)}%`);
+    }
+    if (!this.onFoot || !this.life) { const al = $('aim-label'); if (al) al.hidden = true; }
     // Ship clock vs universe clock (time dilation near the black hole).
     if (this.clock - (this.lastClockText || 0) > 0.1) {
       this.lastClockText = this.clock;
@@ -1334,7 +1378,8 @@ export class Game {
       [['Shift'], 'Run', true],
       [['Space'], 'Jump · hold in the air for the jetpack', true],
       [['C'], 'Jetpack down', !this.walker.onGround],
-      [['E'], 'Board the ship', nearShip, nearShip],
+      ...(this.life?.nearCrate() ? [[['E'], 'Open supply crate', true, true]] : [[['E'], 'Board the ship', nearShip, nearShip]]),
+      ...(this.life?.armed ? [[['Click', 'R'], `Fire laser (${Math.floor(this.life.weapon.energy)}%)`, true]] : []),
       [['V'], 'Third / first person', true],
       [['F'], `Helmet lamp ${this.lightsOn ? 'off' : 'on'}`, true],
       [['I'], 'Scan: facts and survivability', true],

@@ -12,7 +12,7 @@ import { NOISE } from './glsl.js';
 const STYLES = [
   'io', 'europa', 'ganymede', 'callisto', 'mimas', 'enceladus', 'tethys', 'dione', 'rhea', 'titan',
   'iapetus', 'miranda', 'ariel', 'umbriel', 'titania', 'oberon', 'triton', 'proteus', 'nereid',
-  'phobos', 'deimos', 'charon', 'venusClouds', 'titanSurface', 'regolith',
+  'phobos', 'deimos', 'charon', 'venusClouds', 'titanSurface', 'regolith', 'proxb',
 ];
 
 const VERT = /* glsl */ `
@@ -229,6 +229,32 @@ vec3 shade(vec3 n) {
     vec3 high = srgb(vec3(0.62, 0.48, 0.32));
     vec3 col = mix(dunes, high, smoothstep(0.45, 0.6, h));
     col = mix(col, srgb(vec3(0.05, 0.05, 0.06)), smoothstep(0.7, 0.9, n.y) * smoothstep(0.52, 0.6, fbm(n * 5.0, 4)));
+    return col;
+  }
+  if (uStyle == 25) { // Proxima b (imagined): an eyeball world under a red dwarf
+    // +X points at the star. Warp the zone edges so they wander naturally.
+    float warp = (fbm(n * 3.0 + uSeed, 5) - 0.5) * 0.35 + (fbm(n * 11.0, 3) - 0.5) * 0.08;
+    float x = n.x + warp;
+    float detail = fbm(n * 24.0 + 5.0, 5);
+    float fine = fbm(n * 90.0 + 9.0, 4);
+    // Scorched salt flats and pale sand right under the star.
+    vec3 salt = mix(srgb(vec3(0.86, 0.72, 0.56)), srgb(vec3(0.95, 0.86, 0.74)), smoothstep(0.45, 0.7, detail));
+    salt *= 0.9 + 0.2 * smoothstep(0.55, 0.6, fine);
+    // Red-orange dune seas and dark basalt plateaus.
+    vec3 sand = mix(srgb(vec3(0.62, 0.30, 0.16)), srgb(vec3(0.78, 0.45, 0.25)), detail);
+    sand = mix(sand, srgb(vec3(0.22, 0.14, 0.12)), smoothstep(0.62, 0.72, fbm(n * 7.0 + 2.0, 5)) * 0.85);
+    // Twilight ring: near-black violet forests, maroon moss, teal lichen, dark lakes.
+    vec3 forest = mix(srgb(vec3(0.10, 0.05, 0.12)), srgb(vec3(0.22, 0.07, 0.16)), smoothstep(0.35, 0.65, detail));
+    forest = mix(forest, srgb(vec3(0.10, 0.26, 0.26)), smoothstep(0.62, 0.75, fbm(n * 16.0 + 3.0, 4)) * 0.6);
+    forest = mix(forest, srgb(vec3(0.02, 0.04, 0.07)), smoothstep(0.66, 0.7, fbm(n * 5.0 + 8.0, 5)));
+    // Night side: glaciers, blue ice, dark nunataks.
+    vec3 ice = mix(srgb(vec3(0.72, 0.78, 0.86)), srgb(vec3(0.90, 0.93, 0.97)), detail);
+    ice = mix(ice, srgb(vec3(0.38, 0.52, 0.66)), smoothstep(0.6, 0.72, fbm(n * 14.0 + 1.0, 4)) * 0.6);
+    ice = mix(ice, srgb(vec3(0.20, 0.20, 0.22)), smoothstep(0.66, 0.74, fbm(n * 9.0 + 4.0, 5)) * 0.8);
+    vec3 col = ice;
+    col = mix(col, forest, smoothstep(-0.3, -0.12, x));
+    col = mix(col, sand, smoothstep(0.24, 0.42, x));
+    col = mix(col, salt, smoothstep(0.7, 0.85, x));
     return col;
   }
   // regolith (fallback)

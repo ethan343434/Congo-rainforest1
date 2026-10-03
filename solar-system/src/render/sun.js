@@ -6,6 +6,7 @@
 // =============================================================================
 import * as THREE from 'three';
 import { NOISE } from './glsl.js';
+import { STAR, AU } from '../constants.js';
 
 const SURFACE_VERT = /* glsl */ `
 #include <common>
@@ -24,6 +25,7 @@ void main() {
 const SURFACE_FRAG = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_fragment>
+uniform vec3 uTint;
 ${NOISE}
 uniform float uTime;
 uniform mat3 uRot;
@@ -49,7 +51,7 @@ void main() {
   vec3 hot = vec3(1.0, 0.93, 0.82);
   vec3 col = hot * gran * limb * (1.0 - 0.75 * spots);
   col *= 3.2;
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col * uTint, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -72,6 +74,7 @@ void main() {
 const CORONA_FRAG = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_fragment>
+uniform vec3 uTint;
 ${NOISE}
 uniform float uTime;
 uniform float uIntensity;
@@ -86,7 +89,7 @@ void main() {
   float streak = 0.55 + 0.45 * fbm(vec3(ang * 3.0, ang * 1.3, uTime * 0.01), 4);
   float glow = pow(max(1.0 - (rs - 1.0) / 7.0, 0.0), 3.0) * streak + 0.35 * exp(-(rs - 1.0) * 2.2);
   vec3 col = vec3(1.0, 0.86, 0.66) * glow * uIntensity;
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col * uTint, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -95,6 +98,7 @@ void main() {
 const GLARE_FRAG = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_fragment>
+uniform vec3 uTint;
 uniform float uIntensity;
 varying vec2 vUv;
 void main() {
@@ -107,11 +111,14 @@ void main() {
   float a = atan(vUv.y, vUv.x);
   float spikes = pow(abs(cos(a * 3.0)), 80.0) * exp(-r * 9.0) * 0.45;
   vec3 col = vec3(1.0, 0.95, 0.86) * (core + halo + spikes) * uIntensity;
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col * uTint, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
 `;
+
+/** Colour of the star's disk, corona and glare (white for the Sun, red for Proxima). */
+const TINT = { value: new THREE.Vector3(1, 1, 1) };
 
 export class SunVisual {
   constructor(sunBody) {
@@ -120,7 +127,7 @@ export class SunVisual {
     this.surfaceMat = new THREE.ShaderMaterial({
       vertexShader: SURFACE_VERT,
       fragmentShader: SURFACE_FRAG,
-      uniforms: { uTime: { value: 0 }, uRot: { value: new THREE.Matrix3() } },
+      uniforms: { uTime: { value: 0 }, uRot: { value: new THREE.Matrix3() }, uTint: TINT },
     });
     this.surface = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 80), this.surfaceMat);
     this.surface.scale.setScalar(sunBody.radius);
@@ -130,7 +137,7 @@ export class SunVisual {
     this.coronaMat = new THREE.ShaderMaterial({
       vertexShader: GLOW_VERT,
       fragmentShader: CORONA_FRAG,
-      uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+      uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 }, uTint: TINT },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -144,7 +151,7 @@ export class SunVisual {
     this.glareMat = new THREE.ShaderMaterial({
       vertexShader: GLOW_VERT,
       fragmentShader: GLARE_FRAG,
-      uniforms: { uIntensity: { value: 1 } },
+      uniforms: { uIntensity: { value: 1 }, uTint: TINT },
       transparent: true,
       depthWrite: false,
       depthTest: false,
@@ -161,6 +168,7 @@ export class SunVisual {
    * disc not hidden behind other bodies.
    */
   update(time, camRel, visibility, exposure) {
+    TINT.value.set(STAR.disk[0], STAR.disk[1], STAR.disk[2]);
     this.group.position.copy(camRel);
     this.surfaceMat.uniforms.uTime.value = time;
     this.surfaceMat.uniforms.uRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(this.body.quat));
@@ -172,8 +180,9 @@ export class SunVisual {
     const glareAngle = Math.min(1.2, Math.max(9 * Math.PI / 180, sunAngle * 2.2));
     this.glare.scale.setScalar(Math.tan(glareAngle) * d);
     const au = d / 1.495978707e11;
-    const near = Math.min(1, au / 0.15); // fade glare when the disc fills the view
-    this.glareMat.uniforms.uIntensity.value = visibility * near * Math.min(2.2, 1.0 / Math.pow(Math.max(au, 0.1), 0.5)) / Math.max(exposure, 0.3);
+    const near = Math.min(1, 0.031 / (this.body.radius / d)); // fade glare when the disc fills the view
+    const auEff = au / Math.sqrt(STAR.luminosity); // a dim red dwarf glares less
+    this.glareMat.uniforms.uIntensity.value = visibility * near * Math.min(2.2, 1.0 / Math.pow(Math.max(auEff, 0.1), 0.5)) / Math.max(exposure, 0.3);
     this.glare.visible = visibility > 0.001;
     this.coronaMat.uniforms.uTime.value = time;
     this.coronaMat.uniforms.uIntensity.value = 1.1;

@@ -23,8 +23,7 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   its sunlit side, facing it.
 - **A black hole beyond Pluto.** This one is fictional and marked as such in the
   scanner. It sits 15 AU past Pluto, with an accretion disk and a photon ring. Cross the
-  event horizon and you are taken to `void.html`, a blank white page for the next place
-  to build.
+  event horizon and you come out at Proxima b (see below).
   - **Spaghettification.** Over the last few horizon radii, tidal forces stretch your ship,
     the view and the clock towards the hole. The light fades to black as you cross.
   - **Time dilation.** The clock at the top shows ship time against universe time. Near
@@ -34,6 +33,31 @@ or major moon, land on solid worlds and walk around in a spacesuit.
     Look back and you will see faint copies of your own ship.
 - **Earth is off-limits.** A defence grid 600 km up bounces you off. The Moon is fully
   landable, with the six Apollo landing sites where they really are.
+
+## Proxima b: the far side of the black hole
+
+`proxima.html` is the Alpha Centauri system's red dwarf, Proxima Centauri, 4.24 light-years
+away. The star, its planets b and d, and Alpha Centauri A and B in the sky are real. They
+use real sizes, orbits and light: 0.15% of the Sun's output and a 3,040 K red glow. Proxima
+b's surface and life are imagined.
+
+- **An eyeball world.** It is tidally locked, so there is a scorched desert under the star,
+  a frozen night side, and a twilight ring between them. It has a breathable atmosphere you
+  fly down through.
+- **The highest detail in the game.** It has a 4K procedural surface map and terrain about
+  0.25 m apart under your feet.
+- **Wildlife depends on where you are.**
+  - In the twilight ring: **lumen grazers** and **sky jellies**. They are friendly and
+    flee if shot.
+  - On the day side: **dune claws**. On the night side: **night stalkers**. Both are
+    hostile. They hunt you on foot and attack in melee.
+- **Supply crates.** They have glowing beacons and show up as HUD markers. The first one
+  lands beside you when you step out. Inside is a **laser rifle**: left click or `R` fires
+  where the crosshair points, and energy recharges. Other crates hold energy cells, med
+  kits and supplies.
+- **Plants and terrain.** Black-violet lamp trees with glowing blossoms, crimson ferns, ice
+  crystals on the night side and amber spires in the desert.
+- **Going home.** The pause menu has *Return to the Solar System*.
 
 ## How to run
 
@@ -91,12 +115,15 @@ and dims keys you can't use right now. `Tab` hides it.
 
 ```
 index.html, styles.css      page, HUD, menus
-void.html                   the other side of the black hole (blank, for you to build)
+proxima.html                the far side of the black hole (built from index.html by
+                            tools/make-proxima-page.py: edit index.html, then rerun it)
 src/main.js                 entry point
 src/game/game.js            game loop, states, controls, hazards, camera, HUD wiring
 src/game/cameraRig.js       chase / cockpit / on-foot cameras
 src/game/input.js           keyboard + mouse virtual stick
 src/data/bodies.js          33 bodies: physical data, atmospheres, terrain, facts, survivability
+src/data/proxima.js         the Proxima Centauri system; src/data/systems.js picks the system
+src/game/proximaLife.js     Proxima b's creatures, plants, supply crates and laser rifle
 src/sim/ephemeris.js        where everything is, for any date
 src/sim/ship.js             flight model, pulse drive, autopilot, landing
 src/sim/environment.js      air, pressure, temperature, radiation, heating

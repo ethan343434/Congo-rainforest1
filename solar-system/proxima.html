@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sol Voyager</title>
+  <title>Proxima b</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   <link rel="stylesheet" href="styles.css" />
@@ -133,8 +133,8 @@
   <!-- ============================== Screens ============================== -->
   <div id="loading" class="screen visible">
     <div class="title-block">
-      <h1>SOL VOYAGER</h1>
-      <p class="tagline">The real solar system, at real scale, where it is today.</p>
+      <h1>PROXIMA&nbsp;B</h1>
+      <p class="tagline">Crossing the event horizon…</p>
       <div class="progress"><i id="load-bar"></i></div>
       <p id="load-label" class="small">Loading star maps…</p>
     </div>
@@ -142,18 +142,16 @@
 
   <div id="menu" class="screen">
     <div class="title-block">
-      <h1>SOL VOYAGER</h1>
-      <p class="tagline">Every planet and major moon, at real distances and in the positions they hold right now.</p>
+      <h1>PROXIMA&nbsp;B</h1>
+      <p class="tagline">You fell through the black hole and came out 4.24 light-years from home, above a world circling the red dwarf Proxima Centauri.</p>
       <p id="menu-date" class="date"></p>
       <ul class="brief">
-        <li>Fly anywhere with the <b>pulse drive</b>. It slows itself near planets.</li>
-        <li>Land on the <b>Moon</b> and other solid worlds, then step outside.</li>
-        <li>Air means <b>fiery entries</b>. Giant planets crush anything that sinks too deep.</li>
-        <li>Fly too close to the <b>Sun</b> and your hull will burn up.</li>
-        <li>Earth is protected by an orbital defense grid.</li>
-        <li>The <b>warp drive</b> jumps you straight to any planet. Beyond Pluto waits a <b>black hole</b>.</li>
+        <li>Proxima b always shows its star the same face: <b>scorched day side</b>, <b>frozen night side</b>, and a <b>twilight ring</b> of life between them.</li>
+        <li>The air is <b>breathable</b>. Land, step outside (<kbd>E</kbd>) and explore.</li>
+        <li>Find <b>supply crates</b>. They hold a <b>laser rifle</b> (left click to fire) and energy cells.</li>
+        <li>Grazers and sky jellies are <b>friendly</b>. Dune claws on the day side and night stalkers in the dark <b>are not</b>.</li>
       </ul>
-      <button type="button" id="start-btn" class="btn primary">Launch</button>
+      <button type="button" id="start-btn" class="btn primary">Step out of the black hole</button>
       <p class="small"><kbd>H</kbd> controls · best with keyboard and mouse</p>
       <p id="webgl-warning" class="small warn"></p>
     </div>
@@ -203,6 +201,7 @@
         'Opened as a file, so the browser blocks the game scripts. In this folder run <code>python -m http.server 8000</code> and open <code>http://localhost:8000/solar-system/</code>.';
     }
   </script>
+  <script>window.SOL_SYSTEM = 'proxima';</script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

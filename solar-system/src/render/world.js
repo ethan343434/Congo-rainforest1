@@ -4,6 +4,7 @@
 // ship, astronaut and terrain. Updated once per frame relative to the camera.
 // =============================================================================
 import * as THREE from 'three';
+import { STAR } from '../constants.js';
 import { Sky } from './sky.js';
 import { SunVisual } from './sun.js';
 import { BodyVisual, BodyPoints, sunIntensityAt } from './bodyVisuals.js';
@@ -24,7 +25,7 @@ export class WorldRenderer {
 
     this.visuals = new Map();
     for (const b of eph.bodies) {
-      if (b.id === 'sun') continue;
+      if (b.id === 'sun' || b.kind === 'distantstar') continue;
       const v = b.kind === 'blackhole' ? new BlackHoleVisual(b) : new BodyVisual(b);
       this.visuals.set(b.id, v);
       scene.add(v.group);
@@ -83,7 +84,7 @@ export class WorldRenderer {
     for (const [id, v] of this.visuals) {
       const vis = v.body.def.visual || {};
       if (vis.proc) {
-        const size = v.body.radius > 1e6 ? 2048 : 1024;
+        const size = vis.procSize || (v.body.radius > 1e6 ? 2048 : 1024);
         v.setTexture('day', generateProceduralTexture(this.engine.renderer, vis.proc, size));
       }
     }
@@ -144,8 +145,9 @@ export class WorldRenderer {
     this.sunLight.position.copy(focus).addScaledVector(dir, 400);
     this.sunLight.target.position.copy(focus);
     this.sunLight.intensity = 3.2 * intensity * sunVis * (ctx.sunTransmission ?? 1);
-    if (ctx.sunTint) this.sunLight.color.setRGB(...ctx.sunTint);
-    else this.sunLight.color.setRGB(1, 0.98, 0.95);
+    const sc = STAR.color;
+    if (ctx.sunTint) this.sunLight.color.setRGB(ctx.sunTint[0] * sc[0], ctx.sunTint[1] * sc[1], ctx.sunTint[2] * sc[2]);
+    else this.sunLight.color.setRGB(sc[0], sc[1], sc[2]);
     this.sunLight.castShadow = ctx.quality.shadows && !!ctx.wantShadows;
     if (this.sunLight.shadow.mapSize.x !== ctx.quality.shadowMap) {
       this.sunLight.shadow.mapSize.set(ctx.quality.shadowMap, ctx.quality.shadowMap);

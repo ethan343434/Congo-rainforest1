@@ -15,6 +15,14 @@ export const OBLIQUITY = 23.4392911 * DEG; // J2000 mean obliquity of the eclipt
 export const DAY = 86400;
 export const KELVIN = 273.15;
 
+/**
+ * The star at the centre of the current system. The Sun by default; set by
+ * the game when you arrive at Proxima Centauri (a red dwarf: 0.15% of the
+ * Sun's light, 3,040 K).
+ *   luminosity: in Suns · color: tint of its light · disk: tint of its surface
+ */
+export const STAR = { luminosity: 1, color: [1, 0.98, 0.95], disk: [1, 1, 1] };
+
 /** Human-friendly distance: m, km, thousands of km, AU, plus light-time for big ones. */
 export function formatDistance(m) {
   const a = Math.abs(m);

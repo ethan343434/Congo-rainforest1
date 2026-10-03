@@ -26,14 +26,16 @@ export class Input {
     document.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
 
+    this.fireHeld = false;
     canvas.addEventListener('mousedown', (e) => {
       if (!this.enabled) return;
+      if (this.locked && e.button === 0) this.fireHeld = true;
       if (!this.locked) {
         this.requestLock();
         if (e.button === 0) { this.dragging = true; this.dragStart = { x: e.clientX, y: e.clientY }; }
       }
     });
-    window.addEventListener('mouseup', () => { this.dragging = false; });
+    window.addEventListener('mouseup', () => { this.dragging = false; this.fireHeld = false; });
     document.addEventListener('mousemove', (e) => {
       if (!this.enabled) return;
       if (Math.abs(e.movementX) > 300 || Math.abs(e.movementY) > 300) return; // pointer-lock jump glitch

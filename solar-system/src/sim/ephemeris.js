@@ -186,6 +186,9 @@ export class Ephemeris {
         eqjToWorld(s.x * AU, s.y * AU, s.z * AU, b.pos).add(b.parent.pos);
         break;
       }
+      case 'fixed':
+        b.pos.set(e.au[0] * AU, e.au[1] * AU, e.au[2] * AU);
+        break;
       case 'beyond': {
         // Fixed distance past another body, on the line from the Sun.
         const ref = this.byId[e.body].pos;

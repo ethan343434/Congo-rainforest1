@@ -242,7 +242,11 @@ export function createHeightfield(params) {
       }
       h += n;
     }
-    if (T.ridges) h += ridged(px, py, pz, T.ridges.amp, T.ridges.scale, minFeature, seed ^ 0x777);
+    // Eyeball worlds (tidally locked; the star is over local +X): sand seas on
+    // the day side, wind-carved ice ridges on the night side.
+    const dayW = T.eyeball ? smoothstep(0.25, 0.6, x) : 1;
+    const nightW = T.eyeball ? smoothstep(-0.1, -0.45, x) : 1;
+    if (T.ridges) h += ridged(px, py, pz, T.ridges.amp, T.ridges.scale, minFeature, seed ^ 0x777) * (T.eyeball ? 0.35 + 0.65 * nightW : 1);
     for (const o of octaves) {
       if (o.r < minFeature) break;
       h += craterOctave(px, py, pz, o);
@@ -259,7 +263,7 @@ export function createHeightfield(params) {
         const warp = vnoise(px / (w * 6), py / (w * 6), pz / (w * 6), seed ^ 0xbeef) * 2.2;
         const phase = ((px * 0.8 + pz * 0.6) / w) * TAU + warp;
         const s = 0.5 + 0.5 * Math.sin(phase + 0.7 * Math.sin(phase));
-        h += T.dunes.amp * mask * s * s;
+        h += T.dunes.amp * mask * s * s * (T.eyeball ? dayW * 1.6 : 1);
       }
     }
     if (groove && groove.spacing >= minFeature) {

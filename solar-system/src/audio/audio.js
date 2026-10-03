@@ -177,6 +177,10 @@ export class AudioEngine {
       case 'jump': burst('lowpass', 400, 100, 0.08, 0.12); break;
       case 'door': tone('triangle', 300, 600, 0.06, 0.25); burst('bandpass', 2000, 600, 0.08, 0.3); break;
       case 'hurt': tone('sawtooth', 300, 120, 0.12, 0.25); break;
+      case 'laser': tone('sawtooth', 2200, 380, 0.09, 0.16); tone('sine', 1300, 900, 0.06, 0.12); break;
+      case 'growl': burst('lowpass', 420, 120, 0.22, 0.55, 2.5, 0.04); tone('sawtooth', 95, 70, 0.08, 0.5, 0.05); break;
+      case 'chime': tone('sine', 880, 1175, 0.06, 0.5, 0.02); tone('sine', 1320, 1760, 0.035, 0.6, 0.05); break;
+      case 'crate': tone('triangle', 220, 440, 0.08, 0.3); burst('bandpass', 1800, 500, 0.1, 0.4); tone('sine', 660, 990, 0.06, 0.25); break;
       default: break;
     }
   }

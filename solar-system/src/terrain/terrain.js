@@ -162,7 +162,8 @@ export class Terrain {
       heightmap: opts.heightmap || null,
     };
     this.hf = createHeightfield(params);
-    this.maxLevel = Math.max(4, Math.ceil(Math.log2((this.R * Math.PI * 0.5) / (GRID * TARGET_SPACING))));
+    const spacing = body.def.terrain?.spacing ?? TARGET_SPACING;
+    this.maxLevel = Math.max(4, Math.ceil(Math.log2((this.R * Math.PI * 0.5) / (GRID * spacing))));
     this.finestSpacing = tileEdge(this.R, this.maxLevel) / GRID;
     this.workers.registerBody(body.id, params, this.axes, this.hf);
 

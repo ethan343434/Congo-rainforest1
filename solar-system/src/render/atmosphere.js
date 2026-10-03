@@ -9,6 +9,7 @@
 // a metre above the ground or a billion kilometres away.
 // =============================================================================
 import * as THREE from 'three';
+import { STAR } from '../constants.js';
 
 const VERT = /* glsl */ `
 #include <common>
@@ -170,6 +171,7 @@ export function updateAtmosphereUniforms(mat, body, camToCenter, sunDir, sunInte
   u.uHM.value = (atm.mieScaleHeight || atm.scaleHeight * 0.2) / R;
   u.uSunDir.value.copy(sunDir);
   u.uSunIntensity.value = sunIntensity;
+  u.uSunColor.value.setRGB(STAR.color[0], STAR.color[1], STAR.color[2]);
   u.uSteps.value = quality.atmoSteps;
   u.uLightSteps.value = quality.atmoLightSteps;
 }

@@ -10,7 +10,6 @@
 //   the scanner panel (facts + survivability) and a heading tape near ground.
 // =============================================================================
 import * as THREE from 'three';
-import { NAV_ORDER } from '../data/bodies.js';
 import { formatDistance, formatSpeed, formatDuration, formatPressure, formatTemp, KELVIN, G0, C_LIGHT, AU } from '../constants.js';
 import { formatDose } from '../sim/hazards.js';
 
@@ -21,8 +20,9 @@ const _qi = new THREE.Quaternion();
 const RATING_CLASS = { Lethal: 'lethal', Hostile: 'hostile', 'Suit required': 'suit', Habitable: 'habitable' };
 
 export class Hud {
-  constructor(eph, onSelect) {
+  constructor(eph, onSelect, navOrder) {
     this.eph = eph;
+    this.navOrder = navOrder;
     this.onSelect = onSelect;
     this.root = $('hud');
     this.navList = $('nav-list');
@@ -41,7 +41,7 @@ export class Hud {
 
   // ---- Navigation compass -------------------------------------------------------------
   buildNav() {
-    for (const id of NAV_ORDER) {
+    for (const id of this.navOrder) {
       const b = this.eph.byId[id];
       this.addRow(b, false);
       if (b.kind === 'star') continue; // the Sun's "children" are the planets themselves

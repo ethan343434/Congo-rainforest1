@@ -4,11 +4,11 @@
 // and the heat of atmospheric entry. Used by both the ship and the suit.
 // =============================================================================
 import * as THREE from 'three';
-import { SOLAR_LUMINOSITY, SIGMA, AU } from '../constants.js';
+import { SOLAR_LUMINOSITY, SIGMA, AU, STAR } from '../constants.js';
 
 /** Solar irradiance (W/m²) at a distance (m) from the Sun's centre. */
 export function solarFlux(distance) {
-  return SOLAR_LUMINOSITY / (4 * Math.PI * distance * distance);
+  return (SOLAR_LUMINOSITY * STAR.luminosity) / (4 * Math.PI * distance * distance);
 }
 
 /**
@@ -64,7 +64,7 @@ function logInterp(table, x) {
 export function radiationDose(eph, worldPos) {
   let dose = GCR_SV_PER_HOUR;
   const jup = eph.byId.jupiter;
-  const rj = jup.pos.distanceTo(worldPos) / jup.radius;
+  const rj = jup ? jup.pos.distanceTo(worldPos) / jup.radius : Infinity;
   if (rj < 60) {
     // Belts are concentrated near the magnetic equator.
     const rel = worldPos.clone().sub(jup.pos).normalize();
@@ -73,7 +73,7 @@ export function radiationDose(eph, worldPos) {
   }
   // Saturn's belts are weak; give a mild bump inside the main rings' region.
   const sat = eph.byId.saturn;
-  const rs = sat.pos.distanceTo(worldPos) / sat.radius;
+  const rs = sat ? sat.pos.distanceTo(worldPos) / sat.radius : Infinity;
   if (rs < 8) dose += 0.002 * Math.exp(-((rs - 3) ** 2));
   // Near any body the planet blocks part of the cosmic ray sky.
   const near = eph.dominantBody(worldPos);

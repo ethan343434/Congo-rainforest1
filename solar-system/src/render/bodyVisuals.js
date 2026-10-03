@@ -10,7 +10,7 @@ import { createPlanetMaterial, BLACK_TEX } from './planetMaterial.js';
 import { createAtmosphereMaterial, updateAtmosphereUniforms } from './atmosphere.js';
 import { createRings } from './rings.js';
 import { EQUIRECT } from './glsl.js';
-import { AU } from '../constants.js';
+import { AU, STAR } from '../constants.js';
 
 const SPHERE_HI = new THREE.SphereGeometry(1, 256, 128);
 const SPHERE_MID = new THREE.SphereGeometry(1, 128, 64);
@@ -18,7 +18,7 @@ const SPHERE_LO = new THREE.SphereGeometry(1, 64, 32);
 
 /** Brightness of sunlight at a distance, compressed so the outer planets aren't black. */
 export function sunIntensityAt(distance) {
-  return Math.min(2.2, Math.pow(AU / distance, 0.55));
+  return Math.min(2.2, Math.pow((AU * Math.sqrt(STAR.luminosity)) / distance, 0.55));
 }
 
 // ---- Earth's clouds -------------------------------------------------------------------
@@ -232,6 +232,7 @@ export class BodyVisual {
     u.uAxes.value.copy(b.axes).divideScalar(b.maxRadius);
     u.uSunDir.value.copy(sunDir);
     u.uSunIntensity.value = intensity;
+    u.uSunColor.value.setRGB(STAR.color[0], STAR.color[1], STAR.color[2]);
     u.uSunPos.value.subVectors(ctx.sun.pos, ctx.origin);
     u.uSunRadius.value = ctx.sun.radius;
     u.uPlanetCenter.value.copy(rel);
@@ -368,7 +369,7 @@ export class BodyPoints {
       const albedo = b.def.visual?.albedo ?? 0.3;
       const flux = (albedo * b.radius * b.radius) / (dSun * dSun * d * d);
       // Calibrated so m ≈ real apparent magnitude (Jupiter from Earth ≈ −2.5, Neptune ≈ +7.8).
-      const m = -2.5 * Math.log10(flux + 1e-60) - 82.4;
+      const m = b.def.visual?.magnitude ?? -2.5 * Math.log10(flux + 1e-60) - 82.4;
       const fade = Math.max(0, Math.min(1, 1.8 - px / 1.5)); // fade out once a disc is visible
       const size = Math.max(1.0, Math.min(7, 2.0 + (4.0 - m) * 0.5)) * fade * pixelRatio;
       this.sizes[i] = size;

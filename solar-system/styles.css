@@ -189,6 +189,16 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
   position: absolute; right: 16px; top: 180px; padding: 4px 10px; font-size: 12px; color: var(--muted);
   background: var(--glass); border: 1px solid var(--line);
 }
+#aim-label {
+  position: absolute; left: 50%; top: calc(50% + 22px); transform: translateX(-50%);
+  display: grid; justify-items: center; gap: 2px; padding: 4px 10px; min-width: 120px;
+  background: var(--glass); border: 1px solid var(--line); font-size: 12px; text-align: center;
+}
+#aim-label b { font: 600 13px var(--font-display); letter-spacing: 0.06em; }
+#aim-label .ok { color: var(--ok); font: 600 10.5px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
+#aim-label .bad { color: var(--danger); font: 600 10.5px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
+#aim-label i { display: block; height: 3px; justify-self: stretch; background: var(--danger); max-width: 100%; }
+#aim-label small { color: var(--muted); font: 500 11px var(--font-data); }
 #target strong { font: 700 20px var(--font-display); letter-spacing: 0.04em; }
 #t-dist { font: 500 14px var(--font-data); }
 #t-eta { font: 500 12px var(--font-data); color: var(--muted); }
