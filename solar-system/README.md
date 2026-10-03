@@ -19,6 +19,12 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   crushes you if you sink. On foot, your suit's life support and hazard protection drain.
   Each body's scanner entry has a survivability rating: Lethal, Hostile, Suit required or
   Habitable.
+- **Warp drive.** Press `K` and you jump straight to the selected target. You arrive on
+  its sunlit side, facing it.
+- **A black hole beyond Pluto.** This one is fictional and marked as such in the
+  scanner. It sits 15 AU past Pluto, with an accretion disk and a photon ring. Cross the
+  event horizon and you are taken to `void.html`, a blank white page for the next place
+  to build.
 - **Earth is off-limits.** A defence grid 600 km up bounces you off. The Moon is fully
   landable, with the six Apollo landing sites where they really are.
 
@@ -44,8 +50,9 @@ A desktop browser with WebGL 2 and a keyboard and mouse is best.
 | `Space` / `C` | Thrust up / down | Jump, hold for jetpack / jetpack down |
 | `Shift` | Boost | Run |
 | `J` | Pulse drive on / off | |
+| `K` | Warp drive: jump to the target | |
 | `G` | Autopilot to the target | |
-| `T`, `0`–`9` | Next target / Sun, Mercury … Pluto | same |
+| `T`, `0`–`9` | Next target / Sun, Mercury … Pluto (`T` also reaches the black hole) | same |
 | `L` | Auto-land (low and slow over ground) | |
 | `X` | Brake | |
 | `Z` | Flight assist on / off (Newtonian) | |
@@ -75,6 +82,7 @@ Mouse wheel zooms the camera. Click a planet in the left compass to target it.
 
 ```
 index.html, styles.css      page, HUD, menus
+void.html                   the other side of the black hole (blank, for you to build)
 src/main.js                 entry point
 src/game/game.js            game loop, states, controls, hazards, camera, HUD wiring
 src/game/cameraRig.js       chase / cockpit / on-foot cameras

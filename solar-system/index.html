@@ -65,7 +65,7 @@
       <span id="t-dist">—</span>
       <span id="t-eta"></span>
       <span id="t-rating" class="rating"></span>
-      <span class="hint"><kbd>G</kbd> autopilot · <kbd>I</kbd> scan</span>
+      <span class="hint"><kbd>K</kbd> warp · <kbd>G</kbd> autopilot · <kbd>I</kbd> scan</span>
     </section>
 
     <div id="prompt" hidden></div>
@@ -90,6 +90,7 @@
           <dt><kbd>Space</kbd> / <kbd>C</kbd></dt><dd>Thrust up / down</dd>
           <dt><kbd>Shift</kbd></dt><dd>Boost</dd>
           <dt><kbd>J</kbd></dt><dd>Pulse drive on / off (faster than light)</dd>
+          <dt><kbd>K</kbd></dt><dd>Warp drive: jump straight to the target</dd>
           <dt><kbd>G</kbd></dt><dd>Autopilot to the selected target</dd>
           <dt><kbd>T</kbd></dt><dd>Next target</dd>
           <dt><kbd>Z</kbd></dt><dd>Flight assist on / off</dd>
@@ -139,6 +140,7 @@
         <li>Air means <b>fiery entries</b>. Giant planets crush anything that sinks too deep.</li>
         <li>Fly too close to the <b>Sun</b> and your hull will burn up.</li>
         <li>Earth is protected by an orbital defense grid.</li>
+        <li>The <b>warp drive</b> jumps you straight to any planet. Beyond Pluto waits a <b>black hole</b>.</li>
       </ul>
       <button type="button" id="start-btn" class="btn primary">Launch</button>
       <p class="small"><kbd>H</kbd> controls · best with keyboard and mouse</p>
@@ -176,6 +178,8 @@
     <path d="M1460 900 Q 1390 420 1040 -10" stroke="#14181d" stroke-width="22" fill="none" />
     <path d="M0 140 Q 800 40 1600 140" stroke="#14181d" stroke-width="14" fill="none" opacity="0.9" />
   </svg></div>
+  <div id="warp-flash" aria-hidden="true"></div>
+  <div id="void" aria-hidden="true"></div>
   <div id="heat-vignette" aria-hidden="true"></div>
   <div id="damage-flash" aria-hidden="true"></div>
   <div id="fade"></div>

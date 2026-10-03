@@ -186,6 +186,14 @@ export class Ephemeris {
         eqjToWorld(s.x * AU, s.y * AU, s.z * AU, b.pos).add(b.parent.pos);
         break;
       }
+      case 'beyond': {
+        // Fixed distance past another body, on the line from the Sun.
+        const ref = this.byId[e.body].pos;
+        const d = ref.length();
+        if (d > 0) b.pos.copy(ref).multiplyScalar((d + e.extra * AU) / d);
+        else b.pos.set((40 + e.extra) * AU, 0, 0);
+        break;
+      }
       case 'kepler':
         this.keplerPosition(b, ms, b.pos).add(b.parent.pos);
         break;

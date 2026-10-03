@@ -274,6 +274,7 @@ export class Game {
     this.rig.mode = 'chase';
     this.explosion.active = false;
     this.explosion.group.visible = false;
+    this.warp = null;
     this.selectTarget(moon, false);
     this.lastBody = earth;
   }
@@ -439,6 +440,7 @@ export class Game {
       this.eph.update(this.simTime);
       if (this.state === 'play') this.playTime += dt;
       this.applyControls(dt);
+      if (this.state === 'play') this.updateWarp(dt);
       this.step(dt);
       this.processEvents();
       this.updateSystems(dt);
@@ -490,6 +492,7 @@ export class Game {
           this.audio.play('blip');
           break;
         case 'KeyL': if (!this.onFoot) ship.autoLand(); break;
+        case 'KeyK': this.startWarp(); break;
         case 'KeyE': if (this.onFoot) this.enterShip(); else this.exitShip(); break;
         case 'KeyV': this.rig.toggleView(this.onFoot); this.audio.play('blip'); break;
         case 'KeyI': this.toggleScanner(); break;
@@ -643,6 +646,69 @@ export class Game {
     this.walker.events.length = 0;
   }
 
+  // ---- Warp drive: jump straight to the selected target ------------------------------------
+  startWarp() {
+    const ship = this.ship;
+    const T = this.target;
+    const deny = (why) => { this.hud.toast('Warp drive', why, 'warn', 4); this.audio.play('denied'); };
+    if (this.warp) return;
+    if (this.onFoot) return deny('Board your ship first.');
+    if (!T) return deny('Select a target first (T, 0–9 or click the compass).');
+    if (ship.mode === 'landed') return deny('Take off first.');
+    if (ship.mode === 'destroyed') return;
+    const d = T.pos.distanceTo(this.playerWorld);
+    if (d < ship.arrivalDistance(T) * 1.3) return deny(`You are already at ${T.name}.`);
+    ship.cancelAutopilot(true);
+    if (ship.mode === 'pulse' || ship.spool > 0) ship.exitPulse('manual');
+    this.warp = { target: T, t: 0 };
+    this.hud.toast('Warp drive', `Charging. Jumping to ${T.name}.`, '', 3);
+    this.audio.play('spool');
+  }
+
+  updateWarp(dt) {
+    const w = this.warp;
+    const flash = $('warp-flash');
+    if (!w) {
+      if (flash) flash.style.opacity = Math.max(0, Number(flash.style.opacity || 0) - dt * 1.2).toFixed(3);
+      return;
+    }
+    w.t += dt;
+    if (flash) flash.style.opacity = Math.min(1, (w.t / 1.4) ** 2).toFixed(3);
+    if (w.t < 1.4) return;
+    this.warp = null;
+    const T = w.target;
+    const ship = this.ship;
+    // Arrive on the sunlit side, a safe distance out, facing the target.
+    const from = this.playerWorld.clone().sub(T.pos).normalize();
+    const toSun = this.eph.sun.pos.clone().sub(T.pos).normalize();
+    if (T.id === 'sun') toSun.copy(from);
+    const dir = from.multiplyScalar(0.3).addScaledVector(toSun, 0.7).normalize();
+    const point = T.pos.clone().addScaledVector(dir, ship.arrivalDistance(T));
+    ship.placeNear(this.eph.dominantBody(point), point);
+    ship.flightAssist = true;
+    ship.lookAt(T.pos.clone(), T.pole);
+    ship.updateTelemetry();
+    ship.worldPos(this.playerWorld);
+    this.rig.initialised = false;
+    this.prevTargetDist = null;
+    if (T.def.terrain) this.prepareTerrain(T);
+    this.audio.play('pulse-exit');
+    const s = T.def.survivability;
+    this.hud.toast(`Warped to ${T.name}`, s ? `${s.rating}. ${s.summary}` : 'Press I to scan.', 'discovery', 8);
+  }
+
+  /** Past the event horizon: everything goes white, then the other side. */
+  enterVoid() {
+    if (this.state === 'void') return;
+    this.state = 'void';
+    this.warp = null;
+    this.input.releaseLock();
+    this.hud.show(false);
+    $('void').classList.add('visible');
+    this.audio.play('pulse-start');
+    setTimeout(() => { location.href = 'void.html'; }, 3000);
+  }
+
   exitShip() {
     const ship = this.ship;
     if (ship.mode !== 'landed') {
@@ -754,6 +820,12 @@ export class Game {
       this.suit.recharge(dt);
     }
     this.warnings = [...suitWarn, ...shipWarn];
+    // The black hole: warnings as you near the horizon, then the other side.
+    if (body.kind === 'blackhole') {
+      const r = dist / body.radius;
+      if (r < 1) { this.enterVoid(); return; }
+      if (r < 4) this.warnings.unshift({ level: r < 2 ? 'danger' : 'caution', text: `Event horizon ${formatDistance(dist - body.radius)} away: gravity ${(t.gravity / G0).toFixed(1)} g` });
+    }
     // Gas giants: gravity can beat the thrusters.
     if (!this.onFoot && body.atmosphere?.gasGiant && t.altitude < body.atmosphere.top && t.gravity > SHIP.liftAccel * 0.95 && this.ship.mode === 'flight') {
       this.warnings.push({ level: 'caution', text: `Gravity ${(t.gravity / G0).toFixed(1)} g beats the hover thrusters: boost (Shift) to climb` });
@@ -805,6 +877,9 @@ export class Game {
       let shake = Math.min(2.5, q / 25e3);
       if (this.ship.mode === 'pulse') shake += 0.15;
       if (this.ship.spool > 0) shake += this.ship.spool * 0.6;
+      if (this.warp) shake += this.warp.t * 0.8;
+      const cb = this.currentBody();
+      if (cb.kind === 'blackhole') shake += Math.max(0, 3 - this.playerWorld.distanceTo(cb.pos) / cb.radius) * 0.6;
       this.rig.updateShip(this.ship, dt, { pulse: this.ship.mode === 'pulse', shake });
     }
     // Never let the camera dip under the ground.
@@ -964,6 +1039,8 @@ export class Game {
       skyFade,
       sunGlare: glare,
       exposureBoost,
+      // The accretion disk lights itself: don't brighten it like dim sunlight.
+      exposureTarget: body.kind === 'blackhole' ? 0.9 : undefined,
       sunExclude: body.id === 'sun' ? null : body,
     });
 
@@ -1088,7 +1165,7 @@ export class Game {
       } else if (ship.mode === 'flight' && body.def.terrain && telemetry.ground < 1500 && !ship.autopilot) {
         prompt = '<kbd>L</kbd> Auto-land';
       } else if (ship.mode === 'flight' && this.target && !ship.autopilot && this.target.pos.distanceTo(P) > ship.arrivalDistance(this.target) * 2) {
-        prompt = '<kbd>G</kbd> Autopilot to target · <kbd>J</kbd> pulse drive';
+        prompt = '<kbd>K</kbd> Warp to target · <kbd>G</kbd> autopilot · <kbd>J</kbd> pulse';
       }
     }
     const ap = ship.autopilot;

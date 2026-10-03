@@ -610,12 +610,32 @@ export const BODIES = [
     facts: ['So big compared with Pluto that the two orbit a point in space between them.', 'Pluto and Charon always show each other the same face.', 'Its reddish north pole is nicknamed Mordor Macula.'],
     survivability: { rating: 'Suit required', summary: 'Frozen and airless.', hazards: ['−220 °C', 'Vacuum'] },
   },
+
+  // ===================================================================== BLACK HOLE
+  // Not real: an addition to the game. It sits 15 AU beyond Pluto, on the line
+  // from the Sun through Pluto. Its gravity is softened so that the autopilot
+  // can park you near it.
+  {
+    id: 'blackhole', name: 'Black Hole', kind: 'blackhole', parent: 'sun',
+    radius: 20000 * KM, GM: 2.7e16, mass: 4.0e26,
+    ephem: { type: 'beyond', body: 'pluto', extra: 15 },
+    rotation: { type: 'fixed' },
+    visual: { pointColor: '#ffb066', albedo: 40 },
+    stats: { type: 'Black hole (fictional)', day: '—', year: '—', temp: 'Accretion disk ~10 million °C', moons: 0 },
+    facts: [
+      'Not part of the real solar system: it was added to the game. It sits 15 AU beyond Pluto.',
+      'The glowing ring is an accretion disk: gas heated to millions of degrees as it spirals inward.',
+      'Nothing that crosses the event horizon, not even light, can come back out.',
+      'Cross the horizon and you will find out what is on the other side.',
+    ],
+    survivability: { rating: 'Lethal', summary: 'Gravity grows without limit near the event horizon. Past it, there is no way back to this universe.', hazards: ['Event horizon', 'Tidal forces', 'X-rays from the accretion disk'] },
+  },
 ];
 
 export const BODY_BY_ID = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 
 /** Planets in order from the Sun (plus Pluto), for the navigation list. */
-export const NAV_ORDER = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
+export const NAV_ORDER = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'blackhole'];
 
 export function childrenOf(id) {
   return BODIES.filter((b) => b.parent === id);

@@ -188,6 +188,7 @@ export class ShipSim {
   /** Arrival distance from a body's centre for the autopilot. */
   arrivalDistance(body) {
     if (body.id === 'sun') return 0.3 * AU;
+    if (body.kind === 'blackhole') return body.radius * 14; // outside the accretion disk
     if (body.atmosphere?.gasGiant) return body.radius * 3.4;
     if (body.radius < 50e3) return body.maxRadius * 6 + 20e3;
     const barrier = body.def.barrier ? body.radius + body.def.barrier.altitude : 0;
@@ -391,7 +392,7 @@ export class ShipSim {
     // Ground contact.
     const after = this.surfaceInfo(body, this.rel);
     if (after.ground < SHIP.gearHeight && body.def.terrain !== undefined) this.handleContact(after, body, vSurf);
-    else if (after.ground < 0 && !atm?.gasGiant && body.id !== 'sun') this.handleContact(after, body, vSurf);
+    else if (after.ground < 0 && !atm?.gasGiant && body.id !== 'sun' && body.kind !== 'blackhole') this.handleContact(after, body, vSurf);
     this.telemetry.density = density;
   }
 

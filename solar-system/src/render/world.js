@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Sky } from './sky.js';
 import { SunVisual } from './sun.js';
 import { BodyVisual, BodyPoints, sunIntensityAt } from './bodyVisuals.js';
+import { BlackHoleVisual } from './blackHole.js';
 import { generateProceduralTexture } from './procTextures.js';
 
 export class WorldRenderer {
@@ -24,7 +25,7 @@ export class WorldRenderer {
     this.visuals = new Map();
     for (const b of eph.bodies) {
       if (b.id === 'sun') continue;
-      const v = new BodyVisual(b);
+      const v = b.kind === 'blackhole' ? new BlackHoleVisual(b) : new BodyVisual(b);
       this.visuals.set(b.id, v);
       scene.add(v.group);
     }
