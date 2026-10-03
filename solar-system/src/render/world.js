@@ -1,0 +1,161 @@
+// =============================================================================
+// world.js — owns everything drawn in space: Milky Way, Sun, every planet and
+// moon, the dots for distant bodies, and the local sunlight that lights the
+// ship, astronaut and terrain. Updated once per frame relative to the camera.
+// =============================================================================
+import * as THREE from 'three';
+import { Sky } from './sky.js';
+import { SunVisual } from './sun.js';
+import { BodyVisual, BodyPoints, sunIntensityAt } from './bodyVisuals.js';
+import { generateProceduralTexture } from './procTextures.js';
+
+export class WorldRenderer {
+  constructor(engine, eph, assets) {
+    this.engine = engine;
+    this.eph = eph;
+    this.assets = assets;
+    const scene = engine.scene;
+
+    this.sky = new Sky();
+    scene.add(this.sky.mesh);
+    this.sun = new SunVisual(eph.sun);
+    scene.add(this.sun.group);
+
+    this.visuals = new Map();
+    for (const b of eph.bodies) {
+      if (b.id === 'sun') continue;
+      const v = new BodyVisual(b);
+      this.visuals.set(b.id, v);
+      scene.add(v.group);
+    }
+    // Eclipse casters: moons darken their planet; a planet darkens its moons.
+    for (const b of eph.bodies) {
+      const v = this.visuals.get(b.id);
+      if (!v) continue;
+      if (b.kind === 'moon') v.setOccluders([b.parent]);
+      else v.setOccluders([...b.children].sort((p, q) => q.radius - p.radius).slice(0, 4));
+    }
+
+    this.points = new BodyPoints(eph.bodies);
+    scene.add(this.points.points);
+
+    // Local sunlight for nearby objects (ship, astronaut, terrain, rocks).
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 3);
+    this.sunLight.castShadow = true;
+    this.sunLight.shadow.mapSize.set(2048, 2048);
+    const sc = this.sunLight.shadow.camera;
+    sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 1; sc.far = 800;
+    this.sunLight.shadow.bias = -0.0004;
+    this.sunLight.shadow.normalBias = 0.05;
+    scene.add(this.sunLight);
+    scene.add(this.sunLight.target);
+    this.skyLight = new THREE.HemisphereLight(0x8899aa, 0x222018, 0.0);
+    scene.add(this.skyLight);
+    this.ambient = new THREE.AmbientLight(0xffffff, 0.02);
+    scene.add(this.ambient);
+
+    this.exposure = 1;
+    this.time = 0;
+  }
+
+  /** Load real textures and generate procedural ones. progress(fraction, label). */
+  async load(progress) {
+    const jobs = [];
+    const add = (p) => jobs.push(p);
+    const A = this.assets;
+    add(A.texture('milky_way.jpg').then((t) => this.sky.setTexture(t)));
+    for (const [id, v] of this.visuals) {
+      const vis = v.body.def.visual || {};
+      if (vis.map && !vis.proc) add(A.texture(vis.map).then((t) => v.setTexture('day', t)));
+      if (vis.night) add(A.texture(vis.night).then((t) => v.setTexture('night', t)));
+      if (vis.water) add(A.texture(vis.water, { srgb: false }).then((t) => v.setTexture('water', t)));
+      if (vis.height) add(A.texture(vis.height, { srgb: false }).then((t) => v.setTexture('height', t)));
+      if (vis.clouds) add(A.texture(vis.clouds, { srgb: false }).then((t) => v.setTexture('clouds', t)));
+      const rings = v.body.def.rings;
+      if (rings?.texture) add(A.texture(rings.texture, { wrap: false }).then((t) => v.setTexture('rings', t)));
+    }
+    let done = 0;
+    const total = jobs.length;
+    jobs.forEach((p) => p.then(() => progress?.(++done / total, 'textures')).catch(() => progress?.(++done / total, 'textures')));
+    await Promise.allSettled(jobs);
+    // Procedural maps for worlds without a real image map.
+    for (const [id, v] of this.visuals) {
+      const vis = v.body.def.visual || {};
+      if (vis.proc) {
+        const size = v.body.radius > 1e6 ? 2048 : 1024;
+        v.setTexture('day', generateProceduralTexture(this.engine.renderer, vis.proc, size));
+      }
+    }
+    this.titanSurface = generateProceduralTexture(this.engine.renderer, 'titanSurface', 2048);
+  }
+
+  /** Fraction (0..1) of the Sun's disc visible from a camera-world position. */
+  sunVisibility(origin) {
+    const sun = this.eph.sun;
+    const toSun = sun.pos.clone().sub(origin);
+    const dSun = toSun.length();
+    toSun.divideScalar(dSun);
+    const aSun = sun.radius / dSun;
+    let vis = 1;
+    for (const b of this.eph.bodies) {
+      if (b === sun) continue;
+      const to = b.pos.clone().sub(origin);
+      const d = to.length();
+      if (d > dSun) continue;
+      const aB = b.maxRadius / d;
+      if (aB < aSun * 0.02) continue;
+      const sep = Math.acos(Math.min(1, Math.max(-1, to.dot(toSun) / d)));
+      if (sep > aSun + aB) continue;
+      const cover = Math.min(1, (aSun + aB - sep) / (2 * Math.min(aSun, aB)));
+      vis *= 1 - cover * Math.min(1, (aB * aB) / (aSun * aSun));
+    }
+    return Math.max(0, vis);
+  }
+
+  /**
+   * ctx: { origin, time, dt, quality, localBody (BodyState near the camera),
+   *        lightTarget (camera-relative point for shadow focus), inAtmo }
+   */
+  update(ctx) {
+    const eng = this.engine;
+    const sun = this.eph.sun;
+    this.time = ctx.time;
+    const pixelScale = eng.pixelScale;
+    const vctx = { origin: ctx.origin, sun, time: ctx.time, dt: ctx.dt, pixelScale, quality: ctx.quality };
+    for (const v of this.visuals.values()) v.update(vctx);
+    const sunRel = sun.pos.clone().sub(ctx.origin);
+    const sunVis = this.sunVisibility(ctx.origin);
+    this.sunVis = sunVis;
+    this.sun.update(ctx.time, sunRel, sunVis * (ctx.skyFade ?? 1) * ctx.quality.glow, this.exposure);
+    this.points.update(ctx.origin, sun, this.visuals, 1);
+
+    // Local sunlight direction & strength at the camera.
+    const dSun = sunRel.length();
+    const dir = sunRel.clone().divideScalar(dSun);
+    const intensity = sunIntensityAt(dSun);
+    const focus = ctx.lightTarget || new THREE.Vector3();
+    this.sunLight.position.copy(focus).addScaledVector(dir, 400);
+    this.sunLight.target.position.copy(focus);
+    this.sunLight.intensity = 3.2 * intensity * sunVis * (ctx.sunTransmission ?? 1);
+    if (ctx.sunTint) this.sunLight.color.setRGB(...ctx.sunTint);
+    else this.sunLight.color.setRGB(1, 0.98, 0.95);
+    this.sunLight.castShadow = ctx.quality.shadows && !!ctx.wantShadows;
+    if (this.sunLight.shadow.mapSize.x !== ctx.quality.shadowMap) {
+      this.sunLight.shadow.mapSize.set(ctx.quality.shadowMap, ctx.quality.shadowMap);
+      this.sunLight.shadow.map?.dispose();
+      this.sunLight.shadow.map = null;
+    }
+    this.skyLight.intensity = ctx.skyLight ?? 0;
+    if (ctx.skyColor) this.skyLight.color.setRGB(...ctx.skyColor);
+    if (ctx.groundColor) this.skyLight.groundColor.setRGB(...ctx.groundColor);
+
+    // Auto exposure: brighten the dim outer system a little, like an eye adapting,
+    // and stop down when the Sun's disc fills a big part of the view.
+    const sunAngle = Math.asin(Math.min(1, sun.radius / dSun));
+    const glareStop = 1 / (1 + Math.max(0, sunAngle - 0.05) * 6 * sunVis);
+    const target = ctx.exposureTarget ?? Math.min(2.4, Math.max(0.35, (1.0 / Math.pow(intensity, 0.55)) * glareStop));
+    this.exposure += (target - this.exposure) * Math.min(1, ctx.dt * 1.5);
+    eng.renderer.toneMappingExposure = this.exposure;
+    this.sky.update(ctx.skyFade ?? 1);
+  }
+}
