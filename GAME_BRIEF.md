@@ -186,7 +186,17 @@ maze mainly through their flashlight:
 Give the game an actual point — the player must find their way out of the maze.
 
 - **Goal:** navigate the dim forest maze from the crash site and **reach the
-  small native village** on the far side. Reaching the village = **WIN**.
+  small native village** on the far side. Reaching the village = **WIN**, which
+  triggers the escape cutscene below.
+- **Win cutscene (on reaching the village):** when the player steps into the
+  village, hand control over to a short scripted **cutscene** — the survivor is
+  reunited with his **family, who run up and hug him**. Keep it simple and
+  guaranteed to work with the primitive art style: e.g. lock the camera to a
+  framed shot, fade in the village/firelight, animate a few simple human figures
+  (the family) moving toward and embracing the player figure, and overlay text
+  like *"You made it out of the Congo."* / *"You're home."* Pair it with swelling
+  ambient/music if audio is in. End on a win screen with stats and restart.
+  Implement it as its own game state (`cutscene`) so it's easy to extend later.
 - Keep the primary objective simple: *get to the village alive.* The maze itself
   is the challenge. Optionally sprinkle a few **pickups along the way**
   (flashlight batteries, bandages/med supplies, maybe a torn map fragment that
@@ -211,8 +221,14 @@ Give the game an actual point — the player must find their way out of the maze
 - **Survival pressures** (pick a sensible subset; don't over-build):
   - **Health** — depleted by animal attacks and the mosquito swarm; zero =
     death + respawn at the hub (above).
-  - **Stamina** — sprinting drains it, it regenerates when resting. Sprinting
-    matters for escaping predators and the swarm back toward safe paths.
+  - **Sprint (timed burst, not a drain bar).** Holding sprint (**Shift**) makes
+    the player run fast for **exactly 5 seconds**, then it **cuts out and must
+    recharge for 10 seconds** before it can be used again. Show this clearly in
+    the HUD as a **sprint meter / cooldown bar** (full → draining over 5s →
+    empty, then refilling over 10s). Sprint is the player's tool for escaping
+    predators, bolting out of the mosquito swarm, or crossing a dangerous
+    stretch — but the forced 10s cooldown means they can't spam it and must time
+    it. Make the 5s / 10s values tunable constants.
   - Optionally **hunger/thirst or warmth** that ticks down and must be managed
     (eat gathered fruit, drink from safe water). Keep it light; a frustrating
     meter is worse than none.
@@ -223,13 +239,15 @@ Give the game an actual point — the player must find their way out of the maze
 
 ## 7. Controls & HUD
 
-- **WASD** move, **mouse** look, **Shift** sprint, **Space** jump (optional),
-  **F** toggle flashlight, **E** interact/pick up, **Esc** release mouse / pause.
+- **WASD** move, **mouse** look, **Shift** sprint (5s burst, 10s cooldown — see
+  §6), **Space** jump (optional), **F** toggle flashlight, **E** interact/pick
+  up, **Esc** release mouse / pause.
 - Document the control scheme both on the start screen and in a corner of the
   HUD or a toggleable help overlay.
-- **HUD:** health bar, stamina bar, any survival meters, objectives remaining,
-  time of day / day counter, and a minimal interaction prompt ("Press E to
-  collect"). Keep it clean and unobtrusive.
+- **HUD:** health bar, **sprint meter/cooldown bar** (showing the 5s burst and
+  10s recharge), any survival meters, time of day / day counter, death/respawn
+  counter, and a minimal interaction prompt ("Press E to collect"). Keep it
+  clean and unobtrusive.
 
 ## 8. Audio (optional but valued)
 
@@ -264,7 +282,7 @@ sound would attach. Never block the game from loading on an audio asset.
 index.html          # entry point, canvas, UI overlays, loads main.js as a module
 styles.css          # HUD and menu styling
 src/
-  main.js           # bootstrap, game loop, state machine (menu/playing/win/lose)
+  main.js           # bootstrap, game loop, state machine (menu/playing/cutscene/win/lose)
   maze.js           # maze generation (grid) + layout data, start/exit cells
   world.js          # terrain, trees (instanced) dressing the maze, river, village, crash site
   player.js         # first-person controller, movement, collision, stats, flashlight
@@ -286,14 +304,14 @@ Adjust if you have a cleaner structure, but keep concerns separated.
    walls from instanced trees with a walkable path and collision, braid it so
    wrong paths loop back, and place the **native village** at the far end of the
    true route. Confirm the true route is solvable.
-3. Add player stats (health/stamina), the HUD, and **respawn-at-crash-site on
-   death**.
+3. Add player stats (health, **5s-sprint / 10s-cooldown**), the HUD, and
+   **respawn-at-crash-site on death**.
 4. Add the day/night cycle and tune the dim lighting around the flashlight.
 5. Add animals + hazard zones — start with one hostile (crocodile at the river)
    and the mosquito swarm, then add the nest and a passive animal. Wire up damage
    and death→respawn.
-6. Add the **win trigger at the village**, optional pickups, and the win screen
-   (+ optional lose screen) + restart.
+6. Add the **win trigger at the village**, the **family-hug escape cutscene**,
+   optional pickups, and the win screen (+ optional lose screen) + restart.
 7. Polish: audio, more animals, night difficulty, undergrowth detail, balancing,
    village lighting/glow as a navigation beacon.
 
