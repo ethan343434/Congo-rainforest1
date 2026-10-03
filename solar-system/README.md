@@ -102,7 +102,7 @@ landscape. Phones render at a fixed 720p instead of 1080p. On Windows,
 | `K` | Warp drive: jump to the target | |
 | `G` | Autopilot to the target | |
 | `T`, `0`–`9` | Next target / Sun, Mercury … Pluto (`T` also reaches the black hole) | same |
-| `L` | Auto-land (low and slow over ground) | |
+| `L` | Auto-land from orbit over any solid world | |
 | `X` | Brake | |
 | `Z` | Flight assist on / off (Newtonian) | |
 | `E` | Step outside when landed | Board the ship |

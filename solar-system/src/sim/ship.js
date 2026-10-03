@@ -18,8 +18,11 @@
 //   speed is limited in proportion to the clearance, down to 200 m/s over
 //   airless ground, so you arrive ready to land and never pass through a
 //   planet between two frames.
+// * Flight assist also keeps atmospheric entries survivable: air speed stays
+//   below what the hull can shed as heat. Turn assist off for a real,
+//   unprotected entry.
 // * Autopilot: aligns, pulses, routes around the Sun, and drops you out on the
-//   sunlit side of the target.
+//   sunlit side of the target. Auto-land flies the whole descent from orbit.
 // * Landing: gentle touchdowns on solid ground; hard ones damage the ship,
 //   and a crash on a rocky world or moon wrecks it (the game layer throws
 //   you clear and runs the repairs).
@@ -49,7 +52,9 @@ export const SHIP = {
   cruiseNear: 2000,     // m: no cruise boost closer than this to a surface
   cruiseFar: 30000,     // m: full cruise boost beyond this
   cruiseK: 1.0,         // speed limit per metre of clearance (1/s)
-  landingSpeed: 200,    // m/s: the limiter slows you to this over airless ground
+  landingSpeed: 200,    // m/s: the limiter slows you to this over solid ground
+  safeHeatFlux: 60e3,   // W/m²: with flight assist, entry heating is held here (hull ≈ 800 °C)
+  safeDynPressure: 48e3, // Pa: …and air pressure on the hull here (60% of its limit)
   cruiseMax: 0.9 * C_LIGHT,
   pulseK: 0.75,         // pulse speed per metre of clearance (1/s)
   pulseMax: 2400 * C_LIGHT,
@@ -163,15 +168,35 @@ export class ShipSim {
     for (const b of this.eph.bodies) {
       if (b.kind === 'blackhole') continue;
       const dist = b.pos.distanceTo(worldPos);
-      const natural = b.atmosphere || b === this.eph.sun;
-      let h = dist - b.maxRadius - (b.atmosphere ? b.atmosphere.top : 0);
-      if (b === this.parent && !natural) h = info.ground;
-      const floor = natural ? 1.2 * Math.sqrt((2 * b.GM) / dist) + 1000 : SHIP.landingSpeed;
-      const limit = Math.max(floor, SHIP.cruiseK * h);
-      if (h < env.clear) env.clear = h;
+      const solid = b.def.terrain !== undefined;
+      const atm = b.atmosphere;
+      const natural = 1.2 * Math.sqrt((2 * b.GM) / dist) + 1000;
+      let limit, clear;
+      if (solid) {
+        // Down to landing speed over the ground; with air, arrive at the top of
+        // the atmosphere no faster than gravity alone would bring you.
+        const ground = b === this.parent ? info.ground : dist - b.maxRadius;
+        limit = Math.max(SHIP.landingSpeed, SHIP.cruiseK * ground);
+        if (atm) limit = Math.min(limit, Math.max(natural, SHIP.cruiseK * (dist - b.maxRadius - atm.top)));
+        clear = ground;
+      } else {
+        // Gas giants, the Sun, shielded Earth: the cloud tops / surface, natural speeds.
+        clear = dist - b.maxRadius - (atm ? atm.top : 0);
+        limit = Math.max(natural, SHIP.cruiseK * clear);
+      }
+      if (clear < env.clear) env.clear = clear;
       if (limit < env.limit) { env.limit = limit; env.body = b; }
     }
     return env;
+  }
+
+  /** Auto-land works from orbit: anywhere within a few radii of solid ground. */
+  autoLandRange(body = this.parent) {
+    return Math.max(2e6, 4 * body.radius);
+  }
+
+  canAutoLand() {
+    return this.mode === 'flight' && this.parent.def.terrain !== undefined && this.telemetry.ground < this.autoLandRange();
   }
 
   /** Local "up", altitude above the reference surface and above terrain. */
@@ -390,8 +415,9 @@ export class ShipSim {
     this.cruise = working ? Math.min(this.cruise + dt, 30) : Math.max(0, this.cruise - 3 * dt);
     const mult = 1 + cruiseW * (Math.min(SHIP.cruiseMaxMult, Math.max(Math.exp(SHIP.cruiseRate * this.cruise), 1 + Math.max(0, errMag - vNatural) / SHIP.cruiseVScale)) - 1);
 
-    // Thrust in the ship frame (x right, y up, z back).
-    const boost = (inp.boost ? SHIP.boost : 1) * mult;
+    // Thrust in the ship frame (x right, y up, z back). Auto-land may boost.
+    const landing = this.autopilot && this.autopilot.phase === 'land';
+    const boost = (inp.boost || landing ? SHIP.boost : 1) * mult;
     const caps = { x: SHIP.liftAccel * boost, y: SHIP.liftAccel * boost, zf: SHIP.mainAccel * boost, zb: SHIP.reverseAccel * boost };
     const cmd = new THREE.Vector3(inp.strafe, inp.lift, -inp.thrust);
     const qInv = this.quat.clone().invert();
@@ -399,8 +425,13 @@ export class ShipSim {
     if (assist) {
       // Desired: kill velocity relative to the reference frame and cancel gravity.
       const err = this.vel.clone().sub(vRef);
-      if (this.autopilot && this.autopilot.phase === 'land') {
-        const descent = -Math.max(1.6, Math.min(30, info.ground * 0.12));
+      if (landing) {
+        // Descend as fast as the boosted lift thrusters, without the cruise
+        // spool that fades near the ground, could still stop (half their
+        // margin over gravity), easing off over the last few hundred metres.
+        const aUp = Math.max(0.5, SHIP.liftAccel * SHIP.boost - gMag);
+        const g0 = Math.max(0, info.ground), H = SHIP.cruiseFar; // above H the cruise engines brake hard
+        const descent = -Math.max(1.6, Math.min(g0 * 0.25, Math.sqrt(aUp * Math.min(g0, H)) + Math.max(0, g0 - H)));
         err.addScaledVector(_up, -descent);
       }
       const desired = err.multiplyScalar(-SHIP.faGain * (inp.brake ? 2.5 : 1)).sub(gravity);
@@ -429,17 +460,35 @@ export class ShipSim {
     // below what gravity alone could produce).
     this.telemetry.speedLimited = false;
     if (env.body) {
+      // Speed relative to the limiting body; for the body you are over, relative
+      // to its turning surface (Mars' ground moves at 240 m/s).
       const lb = env.body;
-      const vb = _w.copy(this.vel).add(body.vel).sub(lb.vel); // velocity relative to the limiting body
+      const ref = lb === body ? vRef : _v.copy(lb.vel).sub(body.vel);
+      const vb = _w.copy(this.vel).sub(ref);
       const sb = vb.length();
       if (sb > env.limit) {
         vb.multiplyScalar(env.limit / sb);
-        this.vel.copy(vb).add(lb.vel).sub(body.vel);
+        this.vel.copy(vb).add(ref);
         this.telemetry.speedLimited = env.limit < SHIP.cruiseMax;
       }
     }
     const speed = this.vel.length();
     if (speed > SHIP.cruiseMax) this.vel.multiplyScalar(SHIP.cruiseMax / speed);
+    // Flight assist keeps an entry survivable: air speed stays under what the
+    // hull can shed as heat and bear as pressure. Assist off: no protection.
+    this.telemetry.entryLimited = false;
+    if (density > 0 && (assist || this.autopilot)) {
+      const vSafe = Math.min(
+        Math.cbrt(SHIP.safeHeatFlux / entryHeating(density, 1)),
+        Math.sqrt((2 * SHIP.safeDynPressure) / density),
+      );
+      const vAir = _w.copy(this.vel).sub(vSurf);
+      const sa = vAir.length();
+      if (sa > vSafe) {
+        this.vel.copy(vSurf).addScaledVector(vAir, vSafe / sa);
+        this.telemetry.entryLimited = true;
+      }
+    }
     this.telemetry.cruise = mult;
     this.rel.addScaledVector(this.vel, dt);
 
@@ -632,7 +681,7 @@ export class ShipSim {
     const t = this.telemetry;
     if (this.mode !== 'flight') return false;
     if (!this.parent.def.terrain) { this.events.push({ type: 'pulse-denied', why: 'There is no solid ground here' }); return false; }
-    if (t.ground > 1500) { this.events.push({ type: 'pulse-denied', why: 'Descend below 1,500 m to auto-land' }); return false; }
+    if (t.ground > this.autoLandRange()) { this.events.push({ type: 'pulse-denied', why: `Get within ${Math.round(this.autoLandRange() / 1000).toLocaleString('en-US')} km of the surface to auto-land` }); return false; }
     this.autopilot = { target: this.parent, phase: 'land' };
     this.events.push({ type: 'autoland' });
     return true;

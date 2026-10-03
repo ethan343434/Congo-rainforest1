@@ -717,7 +717,7 @@ export class Game {
           if (e.survivable) { this.crashLanding(e.body, e.speed); break; }
           this.systems.destroy(`Crashed into ${e.body.name} at ${formatSpeed(e.speed)}.`);
           break;
-        case 'autoland': this.hud.toast('Auto-land', 'Descending to the surface.', '', 4); break;
+        case 'autoland': this.hud.toast('Auto-land', 'Flying you down to the surface. Any stick or thrust input takes back control.', '', 5); break;
         case 'takeoff': this.audio.play('door'); break;
         default: break;
       }
@@ -1384,7 +1384,7 @@ export class Game {
         else if (this.walker.distanceToShip() < 13) prompt = this.repair ? `Repair drones at work · ${repairClock(this.repair.left)}` : '<kbd>E</kbd> Board ship';
       } else if (ship.mode === 'landed') {
         prompt = '<kbd>E</kbd> Step outside · <kbd>Space</kbd> take off';
-      } else if (ship.mode === 'flight' && body.def.terrain && telemetry.ground < 1500 && !ship.autopilot) {
+      } else if (ship.canAutoLand() && !ship.autopilot) {
         prompt = '<kbd>L</kbd> Auto-land';
       } else if (ship.mode === 'flight' && this.target && !ship.autopilot && this.target.pos.distanceTo(P) > ship.arrivalDistance(this.target) * 2) {
         prompt = '<kbd>K</kbd> Warp to target · <kbd>G</kbd> autopilot · <kbd>J</kbd> pulse';
@@ -1457,7 +1457,7 @@ export class Game {
         landed: ship.mode === 'landed',
         pulse: ship.mode === 'pulse',
         armed: !!this.life?.weapon.has,
-        lowOverGround: !!body.def.terrain && telemetry.ground < 1500,
+        lowOverGround: ship.canAutoLand(),
         useLabel: this.onFoot ? (near ? 'OPEN' : 'BOARD') : 'EXIT',
       });
     }
@@ -1497,7 +1497,7 @@ export class Game {
     const landed = ship.mode === 'landed';
     const hasTarget = !!this.target;
     const nearShip = foot && this.walker.distanceToShip() < 13;
-    const lowSlow = ship.mode === 'flight' && this.currentBody().def.terrain && t.ground < 1500;
+    const lowSlow = ship.canAutoLand();
     // [keys, what it does, available now?, highlighted?]
     const rows = foot ? [
       [['Mouse'], 'Look around', true],

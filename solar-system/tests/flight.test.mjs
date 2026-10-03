@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { BODIES } from '../src/data/bodies.js';
 import { Ephemeris } from '../src/sim/ephemeris.js';
 import { ShipSim, SHIP } from '../src/sim/ship.js';
+import { ShipSystems } from '../src/sim/hazards.js';
 import { AU, C_LIGHT } from '../src/constants.js';
 
 const START = Date.UTC(2026, 9, 3, 12, 0, 0);
@@ -210,6 +211,47 @@ for (const [from, to, maxTime] of [['earth', 'moon', 40], ['earth', 'mars', 90],
     if (clear < 150) { vLow = m.ship.vel.clone().add(m.ship.parent.vel).sub(moon.vel).length(); return false; }
   });
   check('Over airless ground the limiter slows you to 200 m/s', vLow !== null && vLow <= 201, `${vLow?.toFixed(0)} m/s below 150 m`);
+}
+
+// 12. Mars: auto-land from the warp arrival point, and entries with and without flight assist.
+{
+  const arrive = (fa) => {
+    const c = setup('mars', 1, { fa });
+    const m = c.b;
+    const dir = c.eph.sun.pos.clone().sub(m.pos).normalize();
+    c.ship.placeNear(m, m.pos.clone().addScaledVector(dir, c.ship.arrivalDistance(m)));
+    c.ship.lookAt(m.pos);
+    c.ship.flightAssist = fa;
+    c.ship.updateTelemetry();
+    return c;
+  };
+  const a = arrive(true);
+  check('Auto-land is available from the warp arrival point over Mars', a.ship.autoLand());
+  let touch = null;
+  run(a, 240, 1 / 60, (t) => {
+    const ev = a.ship.events.find((e) => ['landed', 'crash', 'impact'].includes(e.type));
+    a.ship.events.length = 0;
+    if (ev) { touch = { ...ev, t }; return false; }
+  });
+  check('Auto-land touches down gently on Mars within 3 minutes', touch?.type === 'landed' && touch.t < 180, `${touch?.type} at ${touch?.speed?.toFixed(1)} m/s after ${touch?.t?.toFixed(0)} s`);
+
+  const entry = (fa) => {
+    const c = arrive(fa);
+    const sys = new ShipSystems();
+    c.ship.input.thrust = 1;
+    let fate = 'still flying';
+    run(c, 120, 1 / 60, (t) => {
+      c.ship.lookAt(c.b.pos);
+      const tel = c.ship.telemetry;
+      sys.update({ dt: 1 / 60, now: t, solarFlux: 590, heatFlux: tel.heatFlux, dynPressure: tel.dynPressure, pressure: tel.pressure, airTemp: tel.temperature, airDensity: tel.density, radiation: 0, ringHazard: 0 });
+      if (sys.destroyed) { fate = sys.cause; return false; }
+      if (c.ship.mode !== 'flight') { fate = c.ship.mode; return false; }
+    });
+    return fate;
+  };
+  const withFa = entry(true), without = entry(false);
+  check('Diving into Mars at full thrust with flight assist survives the entry', !withFa.startsWith('Burned') && !withFa.startsWith('Torn'), withFa);
+  check('…and without flight assist the entry burns the ship up', /heating|Burned/.test(without), without);
 }
 
 console.log(results.join('\n'));

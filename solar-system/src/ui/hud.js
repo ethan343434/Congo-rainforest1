@@ -225,7 +225,7 @@ export class Hud {
       set('r-mode', ctx.walkerAir ? 'ON FOOT · JETPACK' : 'ON FOOT');
     } else {
       set('r-speed', ctx.mode === 'pulse' ? `${formatSpeed(t.speed)}` : formatSpeed(ctx.surfaceSpeed ?? t.speed));
-      set('r-mode', { flight: ctx.autopilot ? `AUTOPILOT · ${ctx.autopilot}` : t.speedLimited ? 'CRUISE · PLANET LIMIT' : t.cruise > 20 ? 'CRUISE ENGINES' : 'THRUSTERS', pulse: ctx.autopilot ? 'PULSE · AUTOPILOT' : 'PULSE DRIVE', landed: 'LANDED', destroyed: 'DESTROYED' }[ctx.mode] || ctx.mode.toUpperCase());
+      set('r-mode', { flight: ctx.autopilot ? `AUTOPILOT · ${ctx.autopilot}` : t.entryLimited ? 'ENTRY · ASSIST LIMIT' : t.speedLimited ? 'CRUISE · PLANET LIMIT' : t.cruise > 20 ? 'CRUISE ENGINES' : 'THRUSTERS', pulse: ctx.autopilot ? 'PULSE · AUTOPILOT' : 'PULSE DRIVE', landed: 'LANDED', destroyed: 'DESTROYED' }[ctx.mode] || ctx.mode.toUpperCase());
     }
     const alt = ctx.surface ? ctx.surface.ground : t.altitude;
     set('r-alt', alt === Infinity ? '—' : formatDistance(alt));
