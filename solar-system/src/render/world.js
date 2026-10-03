@@ -78,17 +78,27 @@ export class WorldRenderer {
     }
     let done = 0;
     const total = jobs.length;
-    jobs.forEach((p) => p.then(() => progress?.(++done / total, 'textures')).catch(() => progress?.(++done / total, 'textures')));
+    const tick = () => progress?.(0.6 * (++done / total), 'Loading planet maps');
+    jobs.forEach((p) => p.then(tick, tick));
     await Promise.allSettled(jobs);
-    // Procedural maps for worlds without a real image map.
-    for (const [id, v] of this.visuals) {
+    // Procedural maps for worlds without a real image map, one at a time so
+    // the loading screen keeps updating.
+    const procs = [];
+    for (const v of this.visuals.values()) {
       const vis = v.body.def.visual || {};
-      if (vis.proc) {
-        const size = vis.procSize || (v.body.radius > 1e6 ? 2048 : 1024);
-        v.setTexture('day', generateProceduralTexture(this.engine.renderer, vis.proc, size));
-      }
+      if (vis.proc) procs.push([v, vis.proc, vis.procSize || (v.body.radius > 1e6 ? 2048 : 1024)]);
     }
-    this.titanSurface = generateProceduralTexture(this.engine.renderer, 'titanSurface', 2048);
+    if (this.visuals.has('titan')) procs.push([null, 'titanSurface', 2048]);
+    for (let i = 0; i < procs.length; i++) {
+      const [v, style, size] = procs[i];
+      progress?.(0.6 + 0.3 * (i / procs.length), `Building moon surfaces (${i + 1}/${procs.length})`);
+      await new Promise((r) => setTimeout(r, 0));
+      try {
+        const tex = await generateProceduralTexture(this.engine.renderer, style, size);
+        if (v) v.setTexture('day', tex);
+        else this.titanSurface = tex;
+      } catch (e) { console.error(e); }
+    }
   }
 
   /**

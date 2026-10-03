@@ -156,9 +156,9 @@ export class Game {
     const bar = $('load-bar'), label = $('load-label');
     const fileWarn = location.protocol === 'file:';
     try {
-      await this.world.load((f) => {
+      await this.world.load((f, text) => {
         bar.style.width = `${Math.round(f * 100)}%`;
-        if (!fileWarn) label.textContent = `Loading planet maps… ${Math.round(f * 100)}%`;
+        if (!fileWarn) label.textContent = `${text}… ${Math.round(f * 100)}%`;
       });
     } catch (e) {
       console.error(e);
@@ -171,6 +171,18 @@ export class Game {
     }).catch(() => {});
     this.prepareTerrain(this.eph.byId[this.sys.preload]);
     this.respawn();
+    // Compile the scene's shaders in the background (where the browser
+    // supports it) so the menu does not stall on its first frame.
+    bar.style.width = '92%';
+    if (!fileWarn) label.textContent = 'Preparing shaders… 92%';
+    try {
+      await Promise.race([
+        this.engine.renderer.compileAsync(this.engine.scene, this.engine.camera),
+        new Promise((r) => setTimeout(r, 60000)),
+      ]);
+    } catch (e) {
+      console.error(e);
+    }
     this.state = 'menu';
     $('loading').classList.remove('visible');
     $('menu').classList.add('visible');
@@ -451,7 +463,9 @@ export class Game {
     const dt = Math.min(dtReal, 0.05);
     this.clock += dt;
     this.handleActions();
-    if (this.state === 'loading') { this.engine.render(); return; }
+    // The loading screen is opaque; drawing the scene now would compile every
+    // shader at once and freeze the page.
+    if (this.state === 'loading') return;
     const running = this.state === 'play' || this.state === 'menu' || this.state === 'dead';
     if (running) {
       // Near the black hole your clock runs slow: the universe races ahead.
