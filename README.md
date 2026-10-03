@@ -97,3 +97,10 @@ node tests/maze.test.mjs
 This generates 400 jungles and checks each one: it can be solved, there is exactly one
 route to the village, the wrong paths really loop, and every hazard sits where it
 should.
+
+## Also in this repository: Sol Voyager
+
+`solar-system/` holds a second game. You fly a ship through the real solar system, at
+real scale and with planets where they are today. You can land on the Moon and other solid
+worlds and walk around in a spacesuit. Serve the repository as above and open
+<http://localhost:8000/solar-system/>. See [solar-system/README.md](solar-system/README.md).

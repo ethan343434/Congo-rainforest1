@@ -150,14 +150,24 @@ function normalizeColor(c) {
  * Per-frame uniforms. camToCenter = planet centre minus camera (world, metres,
  * double precision). quality: { steps, lightSteps }.
  */
+const _dir = new THREE.Vector3();
+
 export function updateAtmosphereUniforms(mat, body, camToCenter, sunDir, sunIntensity, quality) {
   const u = mat.uniforms;
-  const R = body.radius;
-  // Camera relative to centre in planet radii; height computed precisely.
+  const atm = body.atmosphere;
   const d = camToCenter.length();
+  // Oblate giants (Saturn is 10% flatter at the poles): do the maths with the
+  // reference radius under the camera, so the cloud tops sit where they are.
+  _dir.copy(camToCenter).multiplyScalar(-1 / Math.max(d, 1)).applyQuaternion(body.quatInv);
+  const R = body.surfaceRadiusLocal(_dir);
+  // Camera relative to centre in planet radii; height computed precisely.
   u.uCamPos.value.copy(camToCenter).multiplyScalar(-1 / R);
-  // For an oblate body use the local reference radius under the camera.
   u.uCamH.value = d / R - 1;
+  u.uAtmoR.value = 1 + atm.top / R;
+  u.uBetaR.value.set(atm.rayleigh[0] * R, atm.rayleigh[1] * R, atm.rayleigh[2] * R);
+  u.uBetaM.value = (atm.mie || 0) * R;
+  u.uHR.value = atm.scaleHeight / R;
+  u.uHM.value = (atm.mieScaleHeight || atm.scaleHeight * 0.2) / R;
   u.uSunDir.value.copy(sunDir);
   u.uSunIntensity.value = sunIntensity;
   u.uSteps.value = quality.atmoSteps;

@@ -159,7 +159,8 @@ export class WorldRenderer {
     // and stop down when the Sun's disc fills a big part of the view.
     const sunAngle = Math.asin(Math.min(1, sun.radius / dSun));
     const glareStop = 1 / (1 + Math.max(0, sunAngle - 0.05) * 6 * sunVis);
-    const target = ctx.exposureTarget ?? Math.min(2.4, Math.max(0.35, (1.0 / Math.pow(intensity, 0.55)) * glareStop));
+    const boost = ctx.exposureBoost ?? 1;
+    const target = ctx.exposureTarget ?? Math.min(2.4 * boost, Math.max(0.35, (boost / Math.pow(intensity, 0.55)) * glareStop));
     this.exposure += (target - this.exposure) * Math.min(1, ctx.dt * 1.5);
     eng.renderer.toneMappingExposure = this.exposure;
     this.sky.update(ctx.skyFade ?? 1);

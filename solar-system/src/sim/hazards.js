@@ -68,7 +68,8 @@ export class ShipSystems {
     }
 
     // ---- Thermal balance of the hull skin ----
-    let qIn = env.solarFlux * SHIP_ABSORPTIVITY + env.heatFlux;
+    const solar = env.solarFlux || 0, heat = env.heatFlux || 0;
+    let qIn = solar * SHIP_ABSORPTIVITY + heat;
     if (env.airTemp && env.airDensity > 0) {
       // Convection with the surrounding air (strong in thick atmospheres like Venus).
       const h = 6 * Math.sqrt(Math.max(env.airDensity, 0));
@@ -79,14 +80,14 @@ export class ShipSystems {
     this.hullTemp = Math.max(3, this.hullTemp);
     const T = this.hullTemp;
     if (T > HULL_LIMITS.meltTemp) {
-      this.destroy(env.heatFlux > env.solarFlux * SHIP_ABSORPTIVITY
+      this.destroy(heat > solar * SHIP_ABSORPTIVITY
         ? 'Burned up: entry heating melted the hull.'
         : 'Burned up: the Sun’s heat melted the hull.');
       return w;
     }
     if (T > HULL_LIMITS.damageTemp) {
       const x = (T - HULL_LIMITS.damageTemp) / 200;
-      this.damage(dt * (1.5 + 6 * x * x), env.heatFlux > env.solarFlux ? 'entry heating' : 'solar heating', now);
+      this.damage(dt * (1.5 + 6 * x * x), heat > solar ? 'entry heating' : 'solar heating', now);
       w.push({ level: 'danger', text: `Hull temperature critical: ${Math.round(T - KELVIN).toLocaleString('en-US')} °C` });
     } else if (T > HULL_LIMITS.damageTemp - 250) {
       w.push({ level: 'caution', text: `Hull heating: ${Math.round(T - KELVIN).toLocaleString('en-US')} °C` });

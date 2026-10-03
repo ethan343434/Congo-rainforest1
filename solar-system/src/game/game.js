@@ -41,14 +41,30 @@ const _m = new THREE.Matrix4();
 
 // How each landable world's ground looks up close (colour multipliers are linear).
 const GROUND_LOOK = {
-  venus: { tint: [0.62, 0.52, 0.42], slopeBright: 0.15 },
+  // Venera 13/14 saw dark basalt slabs; the radar map is not a colour map.
+  venus: { noMap: true, baseColor: [0.11, 0.095, 0.08], slopeBright: 0.1 },
   mars: { tint: [1.0, 0.96, 0.92], slopeBright: 0.12 },
-  titan: { tint: [1.0, 1.0, 1.0], slopeBright: 0.1 },
+  // Huygens: dark orange-brown plains strewn with rounded ice pebbles.
+  titan: { mapContrast: 0.22, baseColor: [0.17, 0.1, 0.05], slopeBright: 0.1 },
   io: { slopeBright: 0.1 },
 };
 
 // Optical "visibility" of the air near the ground (m) for aerial perspective.
 const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3 };
+
+/** Linear scene colour → final on-screen colour (three.js ACES filmic + sRGB). */
+function toDisplay(rgb, exposure) {
+  const r = (rgb[0] * exposure) / 0.6, g = (rgb[1] * exposure) / 0.6, b = (rgb[2] * exposure) / 0.6;
+  const fit = (v) => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081);
+  const x = fit(0.59719 * r + 0.35458 * g + 0.04823 * b);
+  const y = fit(0.076 * r + 0.90834 * g + 0.01566 * b);
+  const z = fit(0.0284 * r + 0.13383 * g + 0.83777 * b);
+  const out = [1.60475 * x - 0.53108 * y - 0.07367 * z, -0.10208 * x + 1.10813 * y - 0.00605 * z, -0.00327 * x - 0.07276 * y + 1.07602 * z];
+  return out.map((c) => {
+    const v = Math.min(1, Math.max(0, c));
+    return v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  });
+}
 
 export class Game {
   constructor() {
@@ -313,7 +329,8 @@ export class Game {
     const hmPromise = T.heightmap ? this.assets.heightData(T.heightmap.file).catch(() => null) : Promise.resolve(null);
     const vis = body.def.visual || {};
     let colorPromise;
-    if (body.id === 'titan') colorPromise = Promise.resolve(this.world.titanSurface || null);
+    if (GROUND_LOOK[body.id]?.noMap) colorPromise = Promise.resolve(null);
+    else if (body.id === 'titan') colorPromise = Promise.resolve(this.world.titanSurface || null);
     else if (vis.map) colorPromise = this.assets.texture(vis.map).catch(() => null);
     else colorPromise = Promise.resolve(this.world.visuals.get(body.id)?.material.uniforms.uDay.value || null);
     const p = Promise.all([hmPromise, colorPromise]).then(([hm, color]) => {
@@ -820,11 +837,14 @@ export class Game {
     const camRel = new THREE.Vector3().subVectors(origin, body.pos);
     const camDist = camRel.length();
     const upCam = camRel.clone().divideScalar(camDist);
-    const camAlt = camDist - body.radius;
+    // Altitude above the reference ellipsoid (the giant planets are flattened).
+    const refR = body.surfaceRadiusLocal(body.toLocal(upCam.clone()));
+    const camAlt = camDist - refR;
     const elev = upCam.dot(sunDir);
 
     // Sun above the local horizon for nearby objects (ship parked on the night side).
-    const dip = Math.acos(Math.min(1, body.radius / Math.max(body.radius, this.playerWorld.distanceTo(body.pos))));
+    const pDist = this.playerWorld.distanceTo(body.pos);
+    const dip = Math.acos(Math.min(1, refR / Math.max(refR, pDist)));
     const upP = _v.subVectors(this.playerWorld, body.pos).normalize();
     const e = upP.dot(_w.subVectors(sun.pos, this.playerWorld).normalize());
     LOCAL_SUN.value = body.id === 'sun' ? 1 : smoothstep(-Math.sin(dip) - 0.012, -Math.sin(dip) + 0.02, e);
@@ -832,9 +852,10 @@ export class Game {
     // Atmosphere around the camera.
     const atm = body.atmosphere;
     let sunTrans = 1, sunTint = null, skyFade = 1, skyLight = 0, skyColor = null, groundColor = null, glare = 1;
-    let fogDensity = 0;
-    const fogColor = new THREE.Color(0, 0, 0);
-    let deepOpacity = 0;
+    let fogDensity = 0, fogLinear = null;
+    let exposureBoost = 1;
+    let dome = null;
+    for (const v of this.world.visuals.values()) v.atmoDim = 1;
     if (atm && camAlt < atm.top * 1.3 && body.id !== 'sun') {
       const st = sunlightTransmission(body, Math.max(0, camAlt), elev);
       sunTrans = st.factor;
@@ -845,39 +866,63 @@ export class Game {
       const dens = Math.exp(-Math.max(0, camAlt) / atm.scaleHeight);
       const beta = (atm.rayleigh[0] + atm.rayleigh[1] + atm.rayleigh[2]) / 3 + (atm.mie || 0);
       const tau = beta * atm.scaleHeight * dens;
-      const thick = Math.min(1, tau * 4);
+      // How much the daytime sky glow drowns out the stars (Mars: all of them;
+      // Pluto's 1 Pa haze: none).
+      const thick = Math.min(1, tau * 12) * Math.min(1, atm.pressure / 200);
       skyFade = 1 - day * thick * 0.95;
       const haze = atm.haze || [0.6, 0.7, 0.9];
-      skyLight = day * Math.min(1, tau * 3) * 0.9;
+      // Cloud and haze decks overhead (Venus, Titan) dim everything below them;
+      // the eye adapts part of the way.
+      const thickF = Math.exp(-Math.max(0, camAlt) / (atm.scaleHeight * 2.5));
+      const dim = (1 - thickF) + thickF * (atm.surfaceLight ?? 1);
+      const vis0 = this.world.visuals.get(body.id);
+      if (vis0) vis0.atmoDim = dim;
+      exposureBoost = Math.min(5, 1 / Math.sqrt(Math.max(dim, 0.01)));
+      skyLight = day * Math.min(1, tau * 3) * 0.9 * dim;
       skyColor = [haze[0] * 0.9, haze[1] * 0.95, haze[2]];
       groundColor = [haze[0] * 0.35, haze[1] * 0.3, haze[2] * 0.25];
+      const light = (0.03 + 0.97 * day) * dim;
       const vis = VISIBILITY[body.id];
       if (vis && this.terrain && this.terrain.body === body) {
         fogDensity = (Math.sqrt(Math.LN10) / vis) * Math.exp(-Math.max(0, camAlt) / H);
-        const light = 0.03 + 0.97 * day;
-        fogColor.setRGB(haze[0] * light * 0.8, haze[1] * light * 0.8, haze[2] * light * 0.8);
+        fogLinear = [haze[0] * light * 0.9, haze[1] * light * 0.9, haze[2] * light * 0.9];
       }
-      // Inside a cloud deck: Venus' sulfuric acid clouds, the giant planets' decks.
-      let top = null, bottom = null, cloudTop = 0, cloudBottom = 0, lightning = false;
       if (atm.gasGiant) {
-        cloudTop = 25e3; cloudBottom = -60e3; lightning = true;
-        top = atm.cloudColor || haze; bottom = atm.deepColor || [0.2, 0.15, 0.1];
-      } else if (atm.cloudBase) {
-        cloudTop = atm.cloudTop; cloudBottom = atm.cloudBase;
-        top = atm.cloudColor || haze; bottom = haze;
-      }
-      if (top) {
-        if (atm.gasGiant) deepOpacity = smoothstep(cloudTop, cloudBottom, camAlt);
-        else deepOpacity = smoothstep(cloudTop, cloudTop - 6e3, camAlt) * (1 - smoothstep(cloudBottom + 4e3, cloudBottom - 2e3, camAlt));
-        const depthLight = atm.gasGiant ? Math.exp(Math.min(0, camAlt) / 90e3) : 1;
-        const light = (0.04 + 0.96 * day) * depthLight;
-        this.deep.update({ opacity: deepOpacity, up: upCam, sunDir, top, bottom, light, lightning: lightning && camAlt < 0, dt });
-        if (deepOpacity > 0) {
-          fogDensity = Math.max(fogDensity, deepOpacity * 0.004);
-          fogColor.setRGB(top[0] * light * 0.6, top[1] * light * 0.6, top[2] * light * 0.6);
-          skyFade *= 1 - deepOpacity;
-          glare *= 1 - deepOpacity;
+        // Below a giant planet's cloud tops: murk that darkens with depth.
+        const o = smoothstep(25e3, -60e3, camAlt);
+        if (o > 0) {
+          dome = {
+            opacity: o, top: atm.cloudColor || haze, bottom: atm.deepColor || [0.2, 0.15, 0.1],
+            light: (0.04 + 0.96 * day) * Math.exp(Math.min(0, camAlt) / 90e3), lightning: camAlt < 0, fog: 0.004 * o,
+          };
         }
+      } else if ((atm.surfaceLight ?? 1) < 0.3) {
+        // Venus and Titan: an overcast of sulfuric-acid cloud or orange haze.
+        const deckTop = atm.cloudTop ?? atm.hazeTop ?? atm.top;
+        const o = smoothstep(deckTop, deckTop * 0.55, camAlt);
+        const inCloud = atm.cloudBase ? smoothstep(atm.cloudTop, atm.cloudTop - 6e3, camAlt) * (1 - smoothstep(atm.cloudBase + 4e3, atm.cloudBase - 2e3, camAlt)) : 0;
+        const cc = atm.cloudColor || haze;
+        const sky = atm.overcast || haze;
+        if (o > 0) {
+          dome = {
+            opacity: Math.min(1, o * 0.96 + inCloud),
+            top: [0, 1, 2].map((k) => sky[k] * (1 - inCloud) + cc[k] * inCloud),
+            bottom: sky.map((c) => c * 0.4),
+            light: (0.04 + 0.96 * day) * Math.max(dim, 0.02) * 1.6, lightning: false, fog: 0.003 * inCloud,
+          };
+        }
+      }
+      if (dome) {
+        this.deep.update({ ...dome, up: upCam, sunDir, dt });
+        const hz = [0, 1, 2].map((k) => (dome.bottom[k] + 0.43 * (dome.top[k] - dome.bottom[k])) * dome.light);
+        fogLinear = fogLinear ? fogLinear.map((c, k) => c + (hz[k] - c) * dome.opacity) : hz;
+        fogDensity = Math.max(fogDensity, dome.fog);
+        skyFade *= 1 - dome.opacity;
+        glare *= 1 - dome.opacity;
+        sunTrans *= 1 - 0.8 * dome.opacity;
+        skyLight = Math.max(skyLight, dome.opacity * dome.light * 1.4);
+        skyColor = dome.top.map((c) => c * 0.9);
+        groundColor = dome.bottom.slice();
       } else this.deep.update({ opacity: 0, dt });
     } else {
       this.deep.update({ opacity: 0, dt });
@@ -892,10 +937,12 @@ export class Game {
         if (camAlt < 5e3 && elev > 0) skyFade = 0.45;
       }
     }
-    if (fogDensity > 1e-7) {
+    if (fogDensity > 1e-7 && fogLinear) {
       if (!scene.fog) scene.fog = new THREE.FogExp2(0x000000, 0);
       scene.fog.density = fogDensity;
-      scene.fog.color.copy(fogColor);
+      // Fog is blended after tone mapping, so give it the on-screen colour.
+      const d = toDisplay(fogLinear, eng.renderer.toneMappingExposure);
+      scene.fog.color.setRGB(d[0], d[1], d[2]);
     } else if (scene.fog) {
       scene.fog.density = 0;
     }
@@ -916,6 +963,7 @@ export class Game {
       groundColor,
       skyFade,
       sunGlare: glare,
+      exposureBoost,
       sunExclude: body.id === 'sun' ? null : body,
     });
 

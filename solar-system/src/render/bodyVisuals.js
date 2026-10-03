@@ -123,7 +123,7 @@ export class BodyVisual {
     if (atm && !atm.thin) {
       this.atmoMat = createAtmosphereMaterial(body);
       this.atmo = new THREE.Mesh(SPHERE_MID, this.atmoMat);
-      this.atmo.scale.setScalar(body.radius + atm.top);
+      this.atmo.scale.set(body.axes.x + atm.top, body.axes.y + atm.top, body.axes.z + atm.top);
       this.atmo.renderOrder = 3;
       this.group.add(this.atmo);
     }
@@ -235,6 +235,11 @@ export class BodyVisual {
     u.uSunPos.value.subVectors(ctx.sun.pos, ctx.origin);
     u.uSunRadius.value = ctx.sun.radius;
     u.uPlanetCenter.value.copy(rel);
+    if (b.atmosphere?.gasGiant) {
+      const alt = dist - b.radius;
+      u.uDetail.value = 1 - THREE.MathUtils.smoothstep(alt, b.radius * 0.04, b.radius * 0.7);
+      u.uTime.value = ctx.time;
+    }
     let k = 0;
     for (const occ of this.occluders) {
       u.uOccluders.value[k].set(occ.pos.x - ctx.origin.x, occ.pos.y - ctx.origin.y, occ.pos.z - ctx.origin.z, occ.radius);
@@ -265,7 +270,8 @@ export class BodyVisual {
       this.clouds.visible = apparentPx > 3;
     }
     if (this.atmo) {
-      updateAtmosphereUniforms(this.atmoMat, b, rel, sunDir, intensity * 20, ctx.quality);
+      // atmoDim: light lost in cloud decks above the camera (Venus, Titan).
+      updateAtmosphereUniforms(this.atmoMat, b, rel, sunDir, intensity * 20 * (this.atmoDim ?? 1), ctx.quality);
       this.atmo.visible = apparentPx > 2;
     }
     if (this.barrier) {

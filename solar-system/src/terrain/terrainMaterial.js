@@ -116,6 +116,7 @@ uniform vec3 uTint;
 uniform float uSlopeBright;
 uniform float uBumpScale;
 uniform float uDetailContrast;
+uniform float uMapContrast;
 varying vec3 vDir;
 varying vec3 vDetail;
 varying vec3 vLocalNormal;
@@ -143,15 +144,15 @@ vec4 dFine = tri(vDetail / 0.37);
 vec4 dMid = tri(vDetail / 2.9);
 vec4 dBig = tri(vDetail / 23.0);
 vec4 dHuge = tri(vDetail / 190.0);
-vec3 base = uHasColor > 0.5 ? sampleEquirect(uColorMap, normalize(vDir)).rgb : uBaseColor;
+vec3 base = uHasColor > 0.5 ? mix(uBaseColor, sampleEquirect(uColorMap, normalize(vDir)).rgb, uMapContrast) : uBaseColor;
 base *= uTint;
 float slope = clamp(1.0 - dot(ln, normalize(vDir)), 0.0, 1.0);
-float vari = (0.88 + 0.24 * dFine.r) * (0.86 + 0.28 * dMid.g) * (0.88 + 0.24 * dHuge.g);
+float vari = (0.92 + 0.16 * dFine.r) * (0.9 + 0.2 * dMid.g) * (0.88 + 0.24 * dHuge.g);
 vari = mix(1.0, vari, uDetailContrast);
-float peb = dMid.b * 0.18 + dFine.b * 0.1;
+float peb = dMid.b * 0.12 + dFine.b * 0.06;
 vec3 albedo = base * vari * (1.0 + peb) * (1.0 + uSlopeBright * smoothstep(0.08, 0.5, slope));
 diffuseColor.rgb *= albedo;
-float detailH = dFine.a * 0.012 + dMid.a * 0.05 + dBig.a * 0.22 + dHuge.a * 0.9;
+float detailH = dFine.a * 0.005 + dMid.a * 0.022 + dBig.a * 0.09 + dHuge.a * 0.35;
 `;
 
 // Replaces <normal_fragment_maps>: bump relief in metres.
@@ -175,6 +176,7 @@ export function createTerrainMaterial(detailTex, opts = {}) {
     uSlopeBright: { value: opts.slopeBright ?? 0.35 },
     uBumpScale: { value: opts.bump ?? 1 },
     uDetailContrast: { value: opts.detailContrast ?? 1 },
+    uMapContrast: { value: opts.mapContrast ?? 1 },
   };
   mat.userData.uniforms = uniforms;
   mat.onBeforeCompile = (shader) => {
@@ -187,7 +189,7 @@ export function createTerrainMaterial(detailTex, opts = {}) {
       .replace('#include <map_fragment>', FRAG_MAP)
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL);
   };
-  mat.customProgramCacheKey = () => 'terrain-v2';
+  mat.customProgramCacheKey = () => 'terrain-v3';
   return mat;
 }
 

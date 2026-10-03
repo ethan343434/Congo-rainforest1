@@ -309,7 +309,7 @@ export class Hud {
 
   updateToasts(now) {
     const box = $('toasts');
-    while (this.toastQueue.length && box.children.length < 3) {
+    while (this.toastQueue.length && box.children.length < 2) {
       const t = this.toastQueue.shift();
       const el = document.createElement('div');
       el.className = `toast ${t.kind}`;
@@ -367,7 +367,7 @@ export class Hud {
 
 function light(d) {
   const s = d / C_LIGHT;
-  return `Light takes ${formatDuration(s)}`;
+  return s < 1 ? '' : `Light takes ${formatDuration(s)}`;
 }
 
 function escapeHtml(s) {

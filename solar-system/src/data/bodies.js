@@ -79,6 +79,7 @@ export const BODIES = [
       composition: '96.5% CO₂ · 3.5% N₂ · sulfuric-acid clouds',
       rayleigh: [6.5e-6, 6.0e-6, 3.6e-6], mie: 6e-6, mieScaleHeight: 18 * KM, mieG: 0.75,
       haze: [0.92, 0.72, 0.42], cloudBase: 48 * KM, cloudTop: 70 * KM, cloudColor: [0.93, 0.86, 0.66],
+      overcast: [0.95, 0.6, 0.26], // the orange glow Venera 13 photographed
       surfaceLight: 0.025,
     },
     temps: { dayK: 737, nightK: 737 },
@@ -402,6 +403,7 @@ export const BODIES = [
       composition: '95% N₂ · 5% methane · orange organic haze',
       rayleigh: [8e-6, 4.5e-6, 1.2e-6], mie: 9e-6, mieScaleHeight: 60 * KM, mieG: 0.65,
       haze: [0.82, 0.52, 0.2], hazeTop: 300 * KM, surfaceLight: 0.012,
+      overcast: [0.86, 0.5, 0.17], // Huygens' view: a uniform orange haze
     },
     temps: { dayK: 94, nightK: 92 },
     terrain: { craters: { density: 0.02, maxRadius: 20 * KM, minRadius: 2, depth: 0.3 }, noise: { amp: 400, scale: 25 * KM }, dunes: { amp: 60, wavelength: 2800 }, rocks: 0.9 },

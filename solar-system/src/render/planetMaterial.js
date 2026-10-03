@@ -8,7 +8,7 @@
 // shadows, Saturn's ring shadow and eclipse shadows from other bodies.
 // =============================================================================
 import * as THREE from 'three';
-import { EQUIRECT, ECLIPSE, RING_SHADOW } from './glsl.js';
+import { EQUIRECT, ECLIPSE, RING_SHADOW, NOISE } from './glsl.js';
 
 const VERT = /* glsl */ `
 #include <common>
@@ -30,6 +30,10 @@ const FRAG = /* glsl */ `
 ${EQUIRECT}
 ${ECLIPSE}
 ${RING_SHADOW}
+${NOISE}
+uniform float uDetail;      // giant planets up close: turbulent cloud detail
+uniform float uDetailScale;
+uniform float uTime;
 uniform sampler2D uDay;
 uniform sampler2D uNight;
 uniform sampler2D uWater;
@@ -59,6 +63,16 @@ void main() {
   vec3 n = normalize(vLocal);
   vec3 nl = normalize(vLocal / uAxes);
   vec3 albedo = sampleEquirect(uDay, n).rgb * uTint;
+  if (uDetail > 0.001) {
+    // Eddies and festoons finer than the map, stretched east–west like the belts.
+    vec3 q = n * uDetailScale;
+    q.y *= 3.2;
+    float t = uTime * 0.0015;
+    float w = fbm(q + vec3(t, 0.0, -t), 4);
+    float w2 = fbm(q * 4.1 + vec3(w * 2.3), 4);
+    float d = (w * 0.55 + w2 * 0.45) - 0.5;
+    albedo *= 1.0 + d * 0.55 * uDetail;
+  }
 
   // Bump mapping from the height map (east/north gradient).
   if (uFlags.z > 0.5) {
@@ -164,6 +178,9 @@ export function createPlanetMaterial({ airless = false, wrap = 0, limbDark = 0, 
       uRingParams: { value: new THREE.Vector4(0, 0, 0, 0) },
       uRingNormal: { value: new THREE.Vector3(0, 1, 0) },
       uPlanetCenter: { value: new THREE.Vector3() },
+      uDetail: { value: 0 },
+      uDetailScale: { value: 600 },
+      uTime: { value: 0 },
     },
   });
 }

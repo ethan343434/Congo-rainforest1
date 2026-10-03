@@ -44,7 +44,7 @@ export class SpeedDust {
     const streak = Math.min(opts.pulse ? 90 : 40, vis * (opts.air > 0.02 ? 0.06 : 0.03));
     const amount = opts.amount ?? 1;
     const base = (opts.pulse ? 0.5 : opts.air > 0.02 ? 0.2 + opts.air * 0.45 : 0.05) * amount;
-    const fadeIn = Math.min(1, Math.max(0, (v - 3) / 40));
+    const fadeIn = opts.pulse ? 1 : Math.min(1, Math.max(0, (v - 25) / 250));
     if (opts.color) this.color.setRGB(opts.color[0], opts.color[1], opts.color[2]);
     const p = this.pos, V = this.verts, C = this.colors;
     const dx = -dir.x * vis * dt, dy = -dir.y * vis * dt, dz = -dir.z * vis * dt;
@@ -140,7 +140,8 @@ export class DeepAtmosphere {
         uTime: { value: 0 },
       },
     });
-    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(4000, 48, 24), this.material);
+    // Big enough to sit beyond the fog distance, so it only replaces the sky.
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(150e3, 48, 24), this.material);
     this.mesh.renderOrder = 5;
     this.mesh.frustumCulled = false;
     this.mesh.visible = false;
