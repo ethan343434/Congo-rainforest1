@@ -30,6 +30,6 @@ export const SYSTEMS = {
     preload: 'proxb',
     welcome: ['4.24 light-years from home', 'You came out of the black hole above Proxima b. Fly down through the air, land in the twilight ring and look for supply crates.'],
     respawnLabel: 'Respawn above Proxima b',
-    homePage: 'index.html',
+    homePage: './', // the folder's index page (and the artifact's main page)
   },
 };
