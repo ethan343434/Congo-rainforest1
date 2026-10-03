@@ -209,7 +209,7 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
 
 /* Heading tape (near surfaces) */
 #heading-tape {
-  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
   width: min(520px, 60vw); height: 30px; overflow: hidden;
   background: var(--glass); border: 1px solid var(--line);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
@@ -223,7 +223,7 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
 
 /* Warnings & prompts */
 #warning {
-  position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 82px; transform: translateX(-50%);
   padding: 6px 16px; max-width: calc(100% - 32px); text-align: center;
   font: 700 15px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--danger); background: rgba(40, 6, 4, 0.7); border: 1px solid rgba(255, 90, 76, 0.6);
@@ -236,7 +236,7 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
   font: 600 14px var(--font-display); letter-spacing: 0.06em;
   background: var(--glass-strong); border: 1px solid var(--line);
 }
-#toasts { position: absolute; left: 50%; top: 96px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(460px, calc(100% - 600px), calc(100% - 32px)); min-width: min(300px, calc(100% - 32px)); }
+#toasts { position: absolute; left: 50%; top: 124px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(460px, calc(100% - 600px), calc(100% - 32px)); min-width: min(300px, calc(100% - 32px)); }
 .toast {
   padding: 8px 16px; text-align: center; background: var(--glass-strong); border: 1px solid var(--line);
   border-top: 2px solid var(--ice); animation: toast-in 0.35s ease;
@@ -321,7 +321,18 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
   position: fixed; inset: 0; z-index: 8; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(190, 220, 255, 0.75) 35%, rgba(120, 170, 255, 0.25) 70%, transparent 100%);
 }
-#void { position: fixed; inset: 0; z-index: 60; background: #ffffff; opacity: 0; pointer-events: none; transition: opacity 2.6s ease-in; }
+#void { position: fixed; inset: 0; z-index: 60; background: #000000; opacity: 0; pointer-events: none; transition: opacity 2.6s ease-in; }
+#blackout { position: fixed; inset: 0; z-index: 9; background: #000; opacity: 0; pointer-events: none; }
+#app, #markers { transform-origin: 50% 50%; }
+#clock {
+  position: absolute; left: 50%; top: 12px; transform-origin: 50% 50%; translate: -50% 0;
+  display: flex; gap: 14px; padding: 4px 12px; white-space: nowrap;
+  font: 500 12px var(--font-data); color: var(--ink); background: var(--glass); border: 1px solid var(--line);
+}
+#clock b { font: 600 10.5px var(--font-display); letter-spacing: 0.14em; color: var(--muted); margin-right: 4px; }
+#clock .dil b, #clock.dilated .dil { color: var(--amber); }
+#clock.dilated { border-color: var(--amber); }
+@media (max-width: 760px) { #clock { top: auto; bottom: 8px; font-size: 11px; gap: 8px; } }
 #void.visible { opacity: 1; pointer-events: auto; }
 #heat-vignette, #damage-flash { position: fixed; inset: 0; z-index: 8; pointer-events: none; opacity: 0; }
 #heat-vignette { background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(255, 110, 30, 0.35) 75%, rgba(255, 60, 10, 0.7) 100%); mix-blend-mode: screen; }

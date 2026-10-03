@@ -436,7 +436,8 @@ export class Game {
     if (this.state === 'loading') { this.engine.render(); return; }
     const running = this.state === 'play' || this.state === 'menu' || this.state === 'dead';
     if (running) {
-      this.simTime += dt * 1000;
+      // Near the black hole your clock runs slow: the universe races ahead.
+      this.simTime += dt * 1000 * (this.dilation || 1);
       this.eph.update(this.simTime);
       if (this.state === 'play') this.playTime += dt;
       this.applyControls(dt);
@@ -697,7 +698,7 @@ export class Game {
     this.hud.toast(`Warped to ${T.name}`, s ? `${s.rating}. ${s.summary}` : 'Press I to scan.', 'discovery', 8);
   }
 
-  /** Past the event horizon: everything goes white, then the other side. */
+  /** Past the event horizon: everything goes black, then the other side. */
   enterVoid() {
     if (this.state === 'void') return;
     this.state = 'void';
@@ -706,7 +707,74 @@ export class Game {
     this.hud.show(false);
     $('void').classList.add('visible');
     this.audio.play('pulse-start');
-    setTimeout(() => { location.href = 'void.html'; }, 3000);
+    setTimeout(() => { location.href = 'void.html'; }, 3200);
+  }
+
+  // ---- Black hole: tidal stretching, time dilation and echoes of your past self -------------
+  updateBlackHole(dt, origin) {
+    const bh = this.eph.byId.blackhole;
+    const R = bh.radius;
+    const shipW = this.ship.worldPos(new THREE.Vector3());
+    const r = Math.max(1.0001, shipW.distanceTo(bh.pos) / R);
+    const near = !this.onFoot && this.ship.mode !== 'destroyed' && r < 30;
+    // Gravitational time dilation (Schwarzschild): outside clocks run 1/√(1 − rs/r) faster.
+    this.dilation = near ? Math.min(5000, 1 / Math.sqrt(1 - 1 / r)) : 1;
+    // Tidal stretch grows over the last few horizon radii.
+    const s = near ? smoothstep(5, 1.05, r) : 0;
+    this.stretchAmount = s;
+    const toHole = bh.pos.clone().sub(shipW).normalize();
+    const sm = this.shipModel;
+    if (s > 0.001) {
+      const dLocal = toHole.clone().applyQuaternion(_q.copy(this.ship.quat).invert());
+      sm.setStretch(dLocal, 1 + 3 * s * s);
+    } else sm.setStretch(new THREE.Vector3(0, 0, 1), 1);
+    // Screen and timer stretch towards the hole; light fades to black at the horizon.
+    const camQ = _q.copy(this.rig.quat).invert();
+    const v = toHole.clone().applyQuaternion(camQ);
+    let ang = 0;
+    if (v.z < 0) { const ux = v.x, uy = -v.y, l = Math.hypot(ux, uy) || 1; ang = Math.atan2(-ux / l, uy / l); }
+    const tf = s > 0.001 ? `rotate(${ang.toFixed(3)}rad) scale(${(1 + 0.08 * s).toFixed(3)}, ${(1 + 1.6 * s * s).toFixed(3)}) rotate(${(-ang).toFixed(3)}rad)` : '';
+    for (const id of ['app', 'markers', 'clock']) { const el = $(id); if (el && el.style.transform !== tf) el.style.transform = tf; }
+    const black = $('blackout');
+    if (black) black.style.opacity = this.state === 'void' ? '1' : (near ? smoothstep(1.7, 1.0, r) : 0).toFixed(3);
+
+    // Echoes: light that looped around the black hole shows where you were seconds ago.
+    if (!this.echoes) {
+      this.echoHistory = [];
+      this.echoes = [0, 1].map((i) => {
+        const mat = new THREE.MeshBasicMaterial({ color: i ? 0x6f8cff : 0x9fd0ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+        const g = sm.body.clone(true);
+        g.position.set(0, 0, 0);
+        g.traverse((o) => {
+          if (!o.isMesh) return;
+          // Exhaust plumes and glows don't belong in the echo: just the hull.
+          if (o.material.isShaderMaterial || o.material.isMeshBasicMaterial) { o.visible = false; return; }
+          o.material = mat;
+          o.castShadow = false;
+        });
+        g.visible = false;
+        this.engine.scene.add(g);
+        return { g, mat, delay: i ? 11 : 5 };
+      });
+    }
+    const hist = this.echoHistory;
+    if (near && r < 12) {
+      const last = hist[hist.length - 1];
+      if (!last || this.clock - last.t > 0.08) hist.push({ t: this.clock, rel: shipW.clone().sub(bh.pos), quat: this.ship.quat.clone() });
+      while (hist.length && this.clock - hist[0].t > 20) hist.shift();
+    } else if (hist.length) hist.length = 0;
+    for (const e of this.echoes) {
+      const want = this.clock - e.delay;
+      let rec = null;
+      if (near && r < 12) for (let i = hist.length - 1; i >= 0; i--) if (hist[i].t <= want) { rec = hist[i]; break; }
+      // Only worth drawing once you have moved away from where you were.
+      const show = rec && rec.rel.distanceTo(shipW.clone().sub(bh.pos)) > 25;
+      e.g.visible = !!show;
+      if (!show) continue;
+      e.g.position.copy(bh.pos).add(rec.rel).sub(origin);
+      e.g.quaternion.copy(rec.quat);
+      e.mat.opacity = smoothstep(12, 4, r) * (e.delay > 6 ? 0.25 : 0.4) * (0.85 + 0.15 * Math.sin(this.clock * 3 + e.delay));
+    }
   }
 
   exitShip() {
@@ -1072,6 +1140,7 @@ export class Game {
       dt,
     });
     this.heatGlow = heat;
+    this.updateBlackHole(dt, origin);
 
     // Astronaut.
     if (this.onFoot) {
@@ -1199,6 +1268,23 @@ export class Game {
       fps: this.engine.fps,
       qualityName: this.engine.quality.name,
     });
+    // Ship clock vs universe clock (time dilation near the black hole).
+    if (this.clock - (this.lastClockText || 0) > 0.1) {
+      this.lastClockText = this.clock;
+      const el = $('clock');
+      if (el) {
+        el.hidden = this.state !== 'play' && this.state !== 'paused';
+        const T = Math.floor(this.playTime);
+        const pad = (n) => String(n).padStart(2, '0');
+        const ship = `T+ ${pad(Math.floor(T / 3600))}:${pad(Math.floor(T / 60) % 60)}:${pad(T % 60)}`;
+        const u = new Date(this.simTime);
+        const univ = `${u.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} ${u.toLocaleTimeString('en-GB')}`;
+        const d = this.dilation || 1;
+        const txt = `<span><b>SHIP</b> ${ship}</span><span><b>UNIVERSE</b> ${univ}</span>${d > 1.005 ? `<span class="dil"><b>TIME</b> ×${d < 100 ? d.toFixed(2) : Math.round(d).toLocaleString('en-US')}</span>` : ''}`;
+        if (el.innerHTML !== txt) el.innerHTML = txt;
+        el.classList.toggle('dilated', d > 1.05);
+      }
+    }
     // Virtual stick indicator.
     const st = $('stick');
     if (st) {

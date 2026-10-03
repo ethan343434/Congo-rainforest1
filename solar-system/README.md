@@ -25,6 +25,13 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   scanner. It sits 15 AU past Pluto, with an accretion disk and a photon ring. Cross the
   event horizon and you are taken to `void.html`, a blank white page for the next place
   to build.
+  - **Spaghettification.** Over the last few horizon radii, tidal forces stretch your ship,
+    the view and the clock towards the hole. The light fades to black as you cross.
+  - **Time dilation.** The clock at the top shows ship time against universe time. Near
+    the hole your clock runs slow (Schwarzschild factor 1/√(1 − rₛ/r)). The rest of the
+    universe, planets included, races ahead.
+  - **Echoes.** Light that looped around the black hole shows where you were seconds ago.
+    Look back and you will see faint copies of your own ship.
 - **Earth is off-limits.** A defence grid 600 km up bounces you off. The Moon is fully
   landable, with the six Apollo landing sites where they really are.
 

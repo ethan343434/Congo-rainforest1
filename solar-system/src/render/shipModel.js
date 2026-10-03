@@ -106,7 +106,11 @@ export class ShipModel {
     const M = (this.mats = mats(envMap));
     this.root = new THREE.Group();
     this.body = new THREE.Group();
-    this.root.add(this.body);
+    // Tidal stretching near the black hole is applied to this wrapper.
+    this.stretch = new THREE.Group();
+    this.stretch.matrixAutoUpdate = false;
+    this.root.add(this.stretch);
+    this.stretch.add(this.body);
     const add = (geo, mat, x = 0, y = 0, z = 0) => {
       const m = new THREE.Mesh(geo, mat);
       m.position.set(x, y, z);
@@ -235,6 +239,19 @@ export class ShipModel {
     this.root.add(this.plasma);
 
     this.time = 0;
+  }
+
+  /** Stretch by k along a local unit direction d, squeezing the other two axes. */
+  setStretch(d, k) {
+    const p = 1 / Math.sqrt(k);
+    const a = k - p;
+    this.stretch.matrix.set(
+      p + a * d.x * d.x, a * d.x * d.y, a * d.x * d.z, 0,
+      a * d.y * d.x, p + a * d.y * d.y, a * d.y * d.z, 0,
+      a * d.z * d.x, a * d.z * d.y, p + a * d.z * d.z, 0,
+      0, 0, 0, 1,
+    );
+    this.stretch.matrixWorldNeedsUpdate = true;
   }
 
   /**
