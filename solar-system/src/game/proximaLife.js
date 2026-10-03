@@ -715,6 +715,8 @@ export class ProximaLife {
     const show = alt < 350;
     this.floraAnchor.visible = show;
     if (!show) return;
+    const density = this.game.engine.quality.flora ?? 1;
+    if (density !== this.floraDensity) { this.floraDensity = density; this.floraCells.clear(); this.floraKey = ''; }
     const c = this.cellCoords(p.pos, FLORA_CELL);
     const key = `${c.face}:${c.i}:${c.j}`;
     if (key === this.floraKey && !this.floraPending) return;
@@ -773,7 +775,7 @@ export class ProximaLife {
   makeFloraCell(face, i, j, n) {
     const s = 0x7f10a ^ (face * 977);
     const out = [];
-    const r0 = rand3(i, j, 1, s);
+    const r0 = rand3(i, j, 1, s) / (this.floraDensity || 1);
     const dir = this.cellCenter(face, i, j, n, rand3(i, j, 2, s), rand3(i, j, 3, s));
     const biome = biomeAt(dir);
     let kind = null, scale, color, glow;

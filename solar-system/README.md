@@ -58,6 +58,10 @@ b's surface and life are imagined.
 - **Plants and terrain.** Black-violet lamp trees with glowing blossoms, crimson ferns, ice
   crystals on the night side and amber spires in the desert.
 - **Going home.** The pause menu has *Return to the Solar System*.
+- **Graphics.** The solar system keeps at least **30 fps**. Proxima b keeps at least
+  **25 fps**, and spends the extra headroom on a **Medium+** look: sharper 4K shadows, a
+  richer sky (more atmosphere samples) and denser plant life. If the frame rate drops it
+  steps down to Medium, Low and then Minimum. Terrain detail and 1080p are never reduced.
 
 ## How to run
 

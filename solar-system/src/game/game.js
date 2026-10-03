@@ -16,7 +16,7 @@ import { ShipSim, SHIP, smoothstep } from '../sim/ship.js';
 import { ShipSystems, SuitSystems } from '../sim/hazards.js';
 import { solarFlux, radiationDose, surfaceTemperature, sunlightTransmission, atmosphereAt } from '../sim/environment.js';
 import { Walker, WALK } from '../sim/walker.js';
-import { Engine } from '../render/engine.js';
+import { Engine, PROXIMA_TIERS } from '../render/engine.js';
 import { Assets } from '../render/assets.js';
 import { WorldRenderer } from '../render/world.js';
 import { ShipModel } from '../render/shipModel.js';
@@ -72,7 +72,8 @@ export class Game {
   constructor(systemId = 'sol') {
     this.sys = SYSTEMS[systemId] || SYSTEMS.sol;
     Object.assign(STAR, this.sys.star);
-    this.engine = new Engine($('app'));
+    const gfx = this.sys.graphics || {};
+    this.engine = new Engine($('app'), { minFps: gfx.minFps, tiers: gfx.tiers === 'proxima' ? PROXIMA_TIERS : undefined, startTier: gfx.startTier });
     const eng = this.engine;
     this.clock = 0;
     this.eph = new Ephemeris(this.sys.bodies);
@@ -226,7 +227,7 @@ export class Game {
     if (this.state !== 'play') return;
     this.state = 'paused';
     $('pause').classList.add('visible');
-    $('quality-label').textContent = `Rendering at 1080p · quality ${this.engine.quality.name} · ${this.engine.fps.toFixed(0)} fps`;
+    $('quality-label').textContent = `Rendering at 1080p · quality ${this.engine.quality.name} · ${this.engine.fps.toFixed(0)} fps (keeps at least ${this.engine.minFps})`;
     this.input.releaseLock();
   }
 
@@ -1306,7 +1307,7 @@ export class Game {
       prompt,
       showFps: this.showFps,
       fps: this.engine.fps,
-      qualityName: this.engine.quality.name,
+      qualityName: `${this.engine.quality.name} · min ${this.engine.minFps}`,
     });
     // Laser rifle energy.
     const lg = $('g-laser');

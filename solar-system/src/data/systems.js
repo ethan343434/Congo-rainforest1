@@ -16,6 +16,7 @@ export const SYSTEMS = {
     preload: 'moon',
     welcome: ['Welcome aboard', 'Target: the Moon. Press G for autopilot, or J for the pulse drive. H shows all controls.'],
     respawnLabel: 'Respawn near Earth',
+    graphics: { minFps: 30, tiers: 'default', startTier: 1 },
     // Falling into the black hole leads here.
     exitPage: 'proxima.html',
   },
@@ -30,6 +31,8 @@ export const SYSTEMS = {
     preload: 'proxb',
     welcome: ['4.24 light-years from home', 'You came out of the black hole above Proxima b. Fly down through the air, land in the twilight ring and look for supply crates.'],
     respawnLabel: 'Respawn above Proxima b',
+    // 25 fps floor; starts at "Medium+" (sharper shadows, richer sky, more plants).
+    graphics: { minFps: 25, tiers: 'proxima', startTier: 0 },
     homePage: './', // the folder's index page (and the artifact's main page)
   },
 };

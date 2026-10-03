@@ -13,6 +13,7 @@ const RH_PARAM = Number(new URLSearchParams(globalThis.location?.search || '').g
 export const RENDER_HEIGHT = RH_PARAM >= 240 && RH_PARAM <= 2160 ? RH_PARAM : 1080;
 
 // Quality tiers, best first. The governor moves down one tier at a time.
+// `flora` scales plant density where there are plants (Proxima b).
 export const QUALITY_TIERS = [
   { name: 'Ultra', shadowMap: 4096, shadows: true, atmoSteps: 12, atmoLightSteps: 5, particles: 1.0, glow: 1 },
   { name: 'High', shadowMap: 2048, shadows: true, atmoSteps: 10, atmoLightSteps: 4, particles: 1.0, glow: 1 },
@@ -21,8 +22,20 @@ export const QUALITY_TIERS = [
   { name: 'Minimum', shadowMap: 1024, shadows: false, atmoSteps: 5, atmoLightSteps: 2, particles: 0.3, glow: 0.7 },
 ];
 
+// Proxima b: a 25 fps floor, and the headroom spent on looks. "Medium+" is a
+// medium budget with sharper shadows, a richer sky and denser plants.
+export const PROXIMA_TIERS = [
+  { name: 'Medium+', shadowMap: 4096, shadows: true, atmoSteps: 12, atmoLightSteps: 5, particles: 1.0, glow: 1, flora: 1.35 },
+  { name: 'Medium', shadowMap: 2048, shadows: true, atmoSteps: 9, atmoLightSteps: 3, particles: 0.8, glow: 1, flora: 1.0 },
+  { name: 'Low', shadowMap: 1024, shadows: true, atmoSteps: 6, atmoLightSteps: 2, particles: 0.5, glow: 0.8, flora: 0.7 },
+  { name: 'Minimum', shadowMap: 1024, shadows: false, atmoSteps: 5, atmoLightSteps: 2, particles: 0.3, glow: 0.7, flora: 0.45 },
+];
+
 export class Engine {
-  constructor(container) {
+  /** opts: { minFps (30), tiers, startTier } */
+  constructor(container, opts = {}) {
+    this.minFps = opts.minFps ?? 30;
+    this.tiers = opts.tiers ?? QUALITY_TIERS;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       logarithmicDepthBuffer: true,
@@ -42,8 +55,8 @@ export class Engine {
     this.camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.05, 1e15);
     this.scene.add(this.camera);
 
-    this.tierIndex = 1;
-    this.quality = { ...QUALITY_TIERS[this.tierIndex] };
+    this.tierIndex = opts.startTier ?? 1;
+    this.quality = { flora: 1, ...this.tiers[this.tierIndex] };
     this.frameTimes = [];
     this.lastTierChange = 0;
     this.fps = 60;
@@ -79,8 +92,11 @@ export class Engine {
     const p80 = sorted[Math.floor(sorted.length * 0.8)];
     this.fps = 1000 / (sorted[Math.floor(sorted.length / 2)] || 16);
     let next = this.tierIndex;
-    if (p80 > 1000 / 34 && this.tierIndex < QUALITY_TIERS.length - 1) next++; // slower than ~34 fps: drop
-    else if (p80 < 1000 / 55 && this.tierIndex > 0) next--;                   // plenty of headroom: raise
+    // Drop a tier when the slow frames are near the floor (30 fps → 34, 25 fps → 28);
+    // raise it again with plenty of headroom.
+    const dropAt = 1000 / (this.minFps * 1.13), raiseAt = 1000 / (this.minFps * 1.8);
+    if (p80 > dropAt && this.tierIndex < this.tiers.length - 1) next++;
+    else if (p80 < raiseAt && this.tierIndex > 0) next--;
     if (next !== this.tierIndex) {
       this.setTier(next);
       this.lastTierChange = now;
@@ -90,7 +106,7 @@ export class Engine {
 
   setTier(i) {
     this.tierIndex = i;
-    Object.assign(this.quality, QUALITY_TIERS[i]);
+    Object.assign(this.quality, { flora: 1 }, this.tiers[i]);
     this.onQualityChange?.(this.quality);
   }
 
