@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Congo Crash</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- three.js is vendored in /vendor so the game runs offline with no CDN. -->
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+
+  <!-- ===================== HUD ===================== -->
+  <div id="hud">
+    <div id="hud-top">
+      <div id="clock">Day 1 · 14:24</div>
+      <div id="deaths"></div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="prompt"></div>
+    <div id="toast"></div>
+    <div id="bars">
+      <div class="bar-label">HEALTH</div>
+      <div class="bar health"><div id="bar-health"></div></div>
+      <div class="bar-label" id="sprint-label">SPRINT</div>
+      <div class="bar sprint"><div id="bar-sprint"></div></div>
+      <div class="bar-label" id="battery-label">FLASHLIGHT · 100%</div>
+      <div class="bar battery"><div id="bar-battery"></div></div>
+    </div>
+    <div id="help-hint">H · controls</div>
+  </div>
+
+  <div id="help">
+    <h3>Controls</h3>
+    <ul>
+      <li><kbd>W A S D</kbd> move</li>
+      <li><kbd>Mouse</kbd> look (click the screen to capture the mouse)</li>
+      <li><kbd>Shift</kbd> sprint: 5 second burst, then 10 seconds to recharge</li>
+      <li><kbd>Space</kbd> jump over logs and debris</li>
+      <li><kbd>F</kbd> flashlight on / off</li>
+      <li><kbd>E</kbd> pick up batteries and first-aid kits</li>
+      <li><kbd>M</kbd> mute &nbsp; <kbd>H</kbd> hide this &nbsp; <kbd>Esc</kbd> pause</li>
+    </ul>
+  </div>
+
+  <div id="damage-vignette"></div>
+  <div id="letterbox-top"></div>
+  <div id="letterbox-bottom"></div>
+  <div id="caption"></div>
+  <div id="fade"></div>
+
+  <!-- ===================== Screens ===================== -->
+  <div id="start-screen" class="screen">
+    <div class="panel">
+      <h1>CONGO CRASH</h1>
+      <p class="tagline">Lost in the heart of the rainforest.</p>
+      <p>Your small plane has come down deep in the Congo jungle. You are the only survivor.
+        The forest is a dim, tangled maze: most paths wind in circles or lead somewhere you
+        never want to be. Somewhere beyond the trees lies a village, and the way home.</p>
+      <p class="warning">Snakes in the undergrowth. Leopards in the shadows. Crocodiles and hippos in the river.
+        If the jungle kills you, you'll wake beside the wreck and try again.</p>
+      <ul class="controls">
+        <li><kbd>WASD</kbd> move · <kbd>Mouse</kbd> look</li>
+        <li><kbd>Shift</kbd> sprint (5 s burst, 10 s recharge) · <kbd>Space</kbd> jump</li>
+        <li><kbd>F</kbd> flashlight · <kbd>E</kbd> pick up · <kbd>Esc</kbd> pause</li>
+      </ul>
+      <button id="begin-btn" disabled>Growing the jungle…</button>
+      <p class="small" id="file-warning"></p>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen">
+    <div class="panel small-panel">
+      <h2>Paused</h2>
+      <p>The jungle waits for you.</p>
+      <button id="resume-btn">Resume</button>
+    </div>
+  </div>
+
+  <div id="death-screen" class="screen death">
+    <div class="panel transparent">
+      <h2 id="death-cause">You were killed.</h2>
+      <p>Darkness... then the smell of smoke. You wake beside the wreck.</p>
+    </div>
+  </div>
+
+  <div id="win-screen" class="screen">
+    <div class="panel">
+      <h1>YOU ESCAPED</h1>
+      <p class="tagline">You found your way out of the Congo.</p>
+      <div id="win-stats"></div>
+      <button id="again-btn">Play again (new jungle)</button>
+    </div>
+  </div>
+
+  <div id="fatal"></div>
+
+  <script>
+    // ES modules don't load from file:// in most browsers; explain how to run it.
+    if (location.protocol === 'file:') {
+      document.getElementById('file-warning').innerHTML =
+        'This page was opened as a file, so the browser blocks the game scripts.<br>' +
+        'In this folder run <code>python3 -m http.server 8000</code>, then open <code>http://localhost:8000</code>.';
+      document.getElementById('start-screen').classList.add('visible');
+    }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
