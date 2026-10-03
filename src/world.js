@@ -434,7 +434,7 @@ export function buildWorld(maze, scene) {
       seeds[k * 3] = rng() * 100; seeds[k * 3 + 1] = rng() * 100; seeds[k * 3 + 2] = 0.4 + rng();
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x1a1612, size: 0.06, map: glowTex, transparent: true, depthWrite: false, opacity: 0.9 }));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x2e2a22, size: 0.16, map: glowTex, transparent: true, depthWrite: false, opacity: 0.95 }));
     pts.frustumCulled = false;
     root.add(pts);
     const swarm = { home: c.clone(), center: c.clone().setY(1.4), points: pts, seeds, count };
