@@ -55,8 +55,8 @@ of `index.html` before changing it — but default to this.
   deep and enclosing. Use fog (greenish, moderate density) to hide the draw
   distance and sell the "lost in the jungle" claustrophobia.
 - **At least one river** winding through the terrain: a semi-transparent blue
-  plane with gentle animated UVs or vertex motion. Rivers are where alligators
-  live and are dangerous to cross.
+  plane with gentle animated UVs or vertex motion. Rivers are where crocodiles
+  and hippos live and are dangerous to cross.
 - Undergrowth: ferns, bushes, fallen logs, rocks scattered as ground detail.
 - **The crashed plane** sits in a small clearing and is the player's spawn
   point / landmark. It's where the game begins.
@@ -69,22 +69,30 @@ something that stutters.
 
 ## 4. Creatures
 
-The player's request named snakes and alligators plus "creatures from the
-Amazon." Interpret this as **a roster of jungle wildlife** and implement a mix
-of passive and hostile animals. (Note: the Congo and the Amazon are different
-ecosystems, but the player wants that general "deadly rainforest" feel — lean
-into menace over biological accuracy.)
+This game is set **only in the Congo rainforest** — use real Congo Basin
+wildlife, not generic "jungle" or Amazonian animals. Implement a mix of passive
+and hostile creatures. Favor menace and atmosphere, but keep every animal
+something that genuinely lives in the Congo.
 
 Implement at minimum:
 
-- **Snakes** — on the forest floor; slither/patrol; strike and poison/damage the
-  player if approached. Low, hard to spot.
-- **Alligators / crocodiles** — in and near rivers; lunge at the player who
-  enters or lingers at the water. High damage.
-- **A large predator** (leopard/panther-type) — patrols the forest; chases and
-  attacks on sight within a detection radius.
-- **Passive creatures** (e.g. monkeys in trees, birds, a deer-like grazer) —
-  harmless, add life and ambient sound, flee when approached.
+- **Snakes** — Congo species such as the **Gaboon viper** (heavy-bodied, on the
+  forest floor, superbly camouflaged) or **green mamba** (in low branches).
+  Slither/patrol; strike and poison/damage the player if approached. Low and
+  hard to spot.
+- **Nile crocodiles** — in and near rivers; lunge at the player who enters or
+  lingers at the water. High damage. (Use crocodiles, not alligators — Congo
+  rivers have crocs.)
+- **A large predator — the African leopard** — patrols the forest; chases and
+  attacks on sight within a detection radius. The apex hunter of this biome.
+- **Hippopotamus** — near rivers/wetland; territorial and extremely dangerous if
+  the player gets between it and the water. Charges. (Optional but a great
+  Congo-authentic threat.)
+- **Passive creatures** — Congo natives such as **forest elephants**, **western
+  lowland gorillas** (keep them passive unless provoked), **okapi** or a small
+  **duiker** antelope, **monkeys** in the canopy, and birds. Harmless, add life
+  and ambient sound, flee (or, for gorillas/elephants, warn then retreat) when
+  approached.
 
 Each hostile animal needs a minimal **AI state machine**: `idle/patrol →
 detect player (by distance + optional line of sight) → chase → attack (on
