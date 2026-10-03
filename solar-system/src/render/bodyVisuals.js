@@ -270,12 +270,12 @@ export class BodyVisual {
     }
     if (this.barrier) {
       const alt = dist - b.radius;
-      const near = 1 - Math.min(1, Math.max(0, (alt - b.def.barrier.altitude) / 15e6));
+      const near = 1 - Math.min(1, Math.max(0, (alt - b.def.barrier.altitude) / 4.5e6));
       this.barrierHit = Math.max(0, this.barrierHit - ctx.dt * 0.8);
       const bu = this.barrierMat.uniforms;
       bu.uTime.value = ctx.time;
       bu.uCenter.value.copy(rel);
-      bu.uStrength.value = near * near * 0.6;
+      bu.uStrength.value = near * near * 0.5;
       bu.uHit.value = this.barrierHit;
       this.barrier.visible = near > 0.01 || this.barrierHit > 0;
     }

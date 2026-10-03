@@ -29,7 +29,7 @@
 
     <div id="heading-tape" hidden><div id="heading-strip"></div><div id="heading-needle"></div></div>
     <div id="warning" role="alert" hidden></div>
-    <div id="crosshair"></div>
+    <div id="crosshair"><div id="stick" hidden></div></div>
     <div id="prograde" hidden></div>
     <div id="retrograde" hidden></div>
     <div id="target-arrow" hidden></div>
@@ -95,20 +95,25 @@
           <dt><kbd>Z</kbd></dt><dd>Flight assist on / off</dd>
           <dt><kbd>X</kbd></dt><dd>Brake to a stop</dd>
           <dt><kbd>L</kbd></dt><dd>Auto-land (low and slow over solid ground)</dd>
+          <dt><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>Pitch and yaw without a mouse</dd>
+          <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd>Target the Sun, Mercury … Pluto</dd>
         </dl>
         <dl>
           <dt><kbd>E</kbd></dt><dd>Get out of the ship (landed) / back in</dd>
           <dt><kbd>WASD</kbd></dt><dd>Walk (on foot)</dd>
           <dt><kbd>Space</kbd></dt><dd>Jump; hold in the air for the jetpack</dd>
+          <dt><kbd>C</kbd></dt><dd>Jetpack down (for tiny moons like Phobos)</dd>
           <dt><kbd>Shift</kbd></dt><dd>Run</dd>
+          <dt><kbd>F</kbd></dt><dd>Ship landing lights / helmet lamp</dd>
           <dt><kbd>V</kbd></dt><dd>Camera: third person / cockpit</dd>
           <dt><kbd>I</kbd></dt><dd>Scan target (facts &amp; survivability)</dd>
           <dt><kbd>M</kbd></dt><dd>Mute</dd>
           <dt><kbd>H</kbd></dt><dd>This help</dd>
+          <dt><kbd>O</kbd></dt><dd>Frame-rate counter</dd>
           <dt><kbd>Esc</kbd></dt><dd>Pause</dd>
         </dl>
       </div>
-      <p class="note">Mouse wheel zooms the chase camera. Pulse drive slows itself near planets and switches off inside atmospheres.</p>
+      <p class="note">Mouse wheel zooms the camera. The mouse pushes a virtual stick that slowly re-centres. The pulse drive slows itself near planets and switches off inside atmospheres. Gravity is real everywhere: on Jupiter the hover thrusters lose and you need Shift to climb.</p>
       <button type="button" class="btn" data-close="help">Close</button>
     </article>
   </div>
@@ -158,6 +163,8 @@
     </div>
   </div>
 
+  <div id="heat-vignette" aria-hidden="true"></div>
+  <div id="damage-flash" aria-hidden="true"></div>
   <div id="fade"></div>
 
   <script>

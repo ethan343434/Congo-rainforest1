@@ -253,6 +253,13 @@ export class ShipSim {
     return out;
   }
 
+  /** 1 near the surface (hold position over the turning ground), 0 far out. */
+  coRotation(altitude, body = this.parent) {
+    const atm = body.atmosphere;
+    const zone = Math.max(atm ? atm.top * 1.5 : 0, body.radius * 0.08);
+    return 1 - smoothstep(zone, zone * 3, altitude);
+  }
+
   // ---- Main update ----------------------------------------------------------------------------
   update(dt) {
     if (this.mode === 'destroyed') return;
@@ -308,8 +315,7 @@ export class ShipSim {
     const gravity = new THREE.Vector3().copy(_up).multiplyScalar(-gMag);
     const vSurf = body.surfaceVelocity(r, new THREE.Vector3());
     const atm = body.atmosphere;
-    const coRotZone = Math.max(atm ? atm.top * 1.5 : 0, body.radius * 0.08);
-    const coRot = 1 - smoothstep(coRotZone, coRotZone * 3, info.altitude);
+    const coRot = this.coRotation(info.altitude);
     const vRef = vSurf.clone().multiplyScalar(coRot);
 
     // Air: drag relative to the rotating atmosphere, integrated implicitly so
@@ -563,7 +569,10 @@ export class ShipSim {
     const info = this.surfaceInfo(body, this.rel);
     const up = this.rel.clone().divideScalar(info.d);
     const vSurf = body.surfaceVelocity(this.rel, new THREE.Vector3());
-    const vRel = this.vel.clone().sub(vSurf);
+    // Speeds are shown relative to the frame flight assist holds: turning with
+    // the ground near the surface, non-rotating far out.
+    const vRel = this.vel.clone().sub(vSurf.clone().multiplyScalar(this.coRotation(info.altitude)));
+    t.relVel = vRel;
     t.altitude = info.altitude;
     t.ground = info.ground;
     t.terrainH = info.terrainH;
@@ -582,8 +591,9 @@ export class ShipSim {
       t.density = s.density;
       t.temperature = s.temperature;
       t.inAtmosphere = s.density > 0 && info.altitude < atm.top;
-      t.heatFlux = this.mode === 'pulse' ? 0 : entryHeating(s.density, t.surfaceSpeed);
-      t.dynPressure = dynamicPressure(s.density, t.surfaceSpeed);
+      const vAir = this.vel.distanceTo(vSurf);
+      t.heatFlux = this.mode === 'pulse' ? 0 : entryHeating(s.density, vAir);
+      t.dynPressure = dynamicPressure(s.density, vAir);
     } else {
       t.pressure = 0; t.density = 0; t.temperature = null; t.inAtmosphere = false; t.heatFlux = 0; t.dynPressure = 0;
     }

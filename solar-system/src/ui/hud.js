@@ -44,6 +44,7 @@ export class Hud {
     for (const id of NAV_ORDER) {
       const b = this.eph.byId[id];
       this.addRow(b, false);
+      if (b.kind === 'star') continue; // the Sun's "children" are the planets themselves
       for (const m of [...b.children].sort((p, q) => p.def.ephem.a - q.def.ephem.a)) this.addRow(m, true);
     }
   }
@@ -263,7 +264,8 @@ export class Hud {
       set('t-name', tg.name);
       set('t-dist', formatDistance(Math.max(0, d)));
       const closing = ctx.closingSpeed;
-      set('t-eta', ctx.mode === 'pulse' && ctx.autopilot ? 'Pulse autopilot engaged' : closing > 1 ? `ETA ${formatDuration(d / closing)} at ${formatSpeed(closing)}` : light(tg.pos.distanceTo(ctx.playerPos)));
+      const eta = closing > 1 && d > 2000 ? d / closing : Infinity;
+      set('t-eta', ctx.mode === 'pulse' && ctx.autopilot ? 'Pulse autopilot engaged' : eta < 86400 * 2 ? `ETA ${formatDuration(eta)} at ${formatSpeed(closing)}` : light(tg.pos.distanceTo(ctx.playerPos)));
       const r = tg.def.survivability?.rating || '';
       const ratingEl = $('t-rating');
       ratingEl.textContent = r;

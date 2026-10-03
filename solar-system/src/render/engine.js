@@ -8,7 +8,9 @@
 // =============================================================================
 import * as THREE from 'three';
 
-export const RENDER_HEIGHT = 1080;
+// Fixed 1080p. (`?rh=540` overrides it for automated tests on software GPUs.)
+const RH_PARAM = Number(new URLSearchParams(globalThis.location?.search || '').get('rh'));
+export const RENDER_HEIGHT = RH_PARAM >= 240 && RH_PARAM <= 2160 ? RH_PARAM : 1080;
 
 // Quality tiers, best first. The governor moves down one tier at a time.
 export const QUALITY_TIERS = [

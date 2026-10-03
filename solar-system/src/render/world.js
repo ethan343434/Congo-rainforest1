@@ -89,8 +89,11 @@ export class WorldRenderer {
     this.titanSurface = generateProceduralTexture(this.engine.renderer, 'titanSurface', 2048);
   }
 
-  /** Fraction (0..1) of the Sun's disc visible from a camera-world position. */
-  sunVisibility(origin) {
+  /**
+   * Fraction (0..1) of the Sun's disc visible from a world position.
+   * exclude: a body to ignore (the one whose terrain we are lighting).
+   */
+  sunVisibility(origin, exclude) {
     const sun = this.eph.sun;
     const toSun = sun.pos.clone().sub(origin);
     const dSun = toSun.length();
@@ -98,11 +101,11 @@ export class WorldRenderer {
     const aSun = sun.radius / dSun;
     let vis = 1;
     for (const b of this.eph.bodies) {
-      if (b === sun) continue;
+      if (b === sun || b === exclude) continue;
       const to = b.pos.clone().sub(origin);
       const d = to.length();
       if (d > dSun) continue;
-      const aB = b.maxRadius / d;
+      const aB = Math.asin(Math.min(1, b.maxRadius / d));
       if (aB < aSun * 0.02) continue;
       const sep = Math.acos(Math.min(1, Math.max(-1, to.dot(toSun) / d)));
       if (sep > aSun + aB) continue;
@@ -124,9 +127,12 @@ export class WorldRenderer {
     const vctx = { origin: ctx.origin, sun, time: ctx.time, dt: ctx.dt, pixelScale, quality: ctx.quality };
     for (const v of this.visuals.values()) v.update(vctx);
     const sunRel = sun.pos.clone().sub(ctx.origin);
-    const sunVis = this.sunVisibility(ctx.origin);
-    this.sunVis = sunVis;
-    this.sun.update(ctx.time, sunRel, sunVis * (ctx.skyFade ?? 1) * ctx.quality.glow, this.exposure);
+    const sunVisAll = this.sunVisibility(ctx.origin);
+    // The global sunlight ignores the body under you (its own day/night comes
+    // from surface normals); nearby objects get LOCAL_SUN on top of this.
+    const sunVis = ctx.sunExclude ? this.sunVisibility(ctx.origin, ctx.sunExclude) : sunVisAll;
+    this.sunVis = sunVisAll;
+    this.sun.update(ctx.time, sunRel, sunVisAll * (ctx.sunGlare ?? 1) * ctx.quality.glow, this.exposure);
     this.points.update(ctx.origin, sun, this.visuals, 1);
 
     // Local sunlight direction & strength at the camera.
