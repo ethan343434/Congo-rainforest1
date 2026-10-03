@@ -379,6 +379,94 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
   #keys, #keys-tab { display: none; }
   .gauge { grid-template-columns: 74px 1fr 44px; }
 }
+/* ---- Phones and tablets (touch.js adds body.touch) ------------------------------------- */
+/* Only the game surfaces block panning, so menus and the scanner card still scroll. */
+body.touch #app { touch-action: none; }
+body.touch { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+body.touch #keys, body.touch #keys-tab, body.touch #target, body.touch #env, body.touch #heading-tape,
+body.touch #row-vs, body.touch #flight .readout:nth-child(5), body.touch #nav footer, body.touch #fps { display: none; }
+body.touch #nav { left: max(8px, env(safe-area-inset-left)); top: 8px; width: 176px; max-height: 50%; }
+body.touch #nav header { padding: 4px 8px; }
+body.touch #nav-list { padding: 2px 0; }
+body.touch #nav-list li { grid-template-columns: 18px 1fr auto; gap: 5px; padding: 3px 8px; }
+body.touch #nav-list li.moon { padding-left: 18px; }
+body.touch #nav-list .name { font-size: 12px; }
+body.touch #nav-list .dist { font-size: 10px; }
+body.touch #nav-list .dir { transform: scale(0.8); }
+body.touch #flight {
+  top: 8px; bottom: auto; grid-template-columns: repeat(3, auto); gap: 0 12px; padding: 4px 10px;
+  border-top: none; border-bottom: 2px solid var(--ice);
+}
+body.touch .readout .label { font-size: 9px; }
+body.touch .readout span:last-child { font-size: 12px; }
+body.touch .readout.big span:last-child { font-size: 15px; }
+body.touch .assist { font-size: 9px; }
+body.touch #status { top: 8px; bottom: auto; right: max(8px, env(safe-area-inset-right)); width: 172px; padding: 5px 8px; gap: 3px; }
+body.touch .gauge { grid-template-columns: 60px 1fr 36px; gap: 5px; }
+body.touch .gauge .label { font-size: 9px; }
+body.touch .gauge .val { font-size: 10px; }
+body.touch #clock { top: auto; bottom: 6px; left: max(8px, env(safe-area-inset-left)); translate: 0 0; flex-direction: column; gap: 0; font-size: 9.5px; padding: 2px 6px; }
+body.touch #clock b { font-size: 9px; }
+body.touch #warning { top: 72px; font-size: 11px; padding: 4px 10px; max-width: calc(100% - 380px); }
+body.touch #toasts { top: 100px; width: min(360px, calc(100% - 380px)); min-width: 0; }
+body.touch .toast { padding: 5px 10px; font-size: 12px; }
+body.touch .toast b { font-size: 10.5px; }
+body.touch #prompt { top: 56%; font-size: 12px; padding: 5px 12px; }
+body.touch #aim-label { transform: scale(0.85); }
+
+#touch-pad { position: fixed; inset: 0; z-index: 9; touch-action: none; }
+#touch-ui { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#touch-stick {
+  position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%;
+  border: 1.5px solid rgba(143, 211, 255, 0.35); background: rgba(9, 15, 23, 0.25); display: none;
+}
+#touch-stick.on { display: block; }
+#touch-stick i {
+  position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%;
+  background: rgba(143, 211, 255, 0.35); border: 1.5px solid var(--ice);
+}
+#touch-main {
+  position: fixed; right: calc(env(safe-area-inset-right) + 12px); bottom: 12px;
+  display: grid; grid-template-columns: repeat(2, 62px); gap: 10px; direction: rtl;
+}
+#touch-chips {
+  position: fixed; right: calc(env(safe-area-inset-right) + 160px); bottom: 12px; max-width: min(330px, 46vw);
+  display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; gap: 6px;
+}
+.tbtn, .tchip, #touch-pause {
+  pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
+  color: var(--ink); background: rgba(9, 15, 23, 0.5); border: 1.5px solid var(--line);
+  font: 700 10.5px var(--font-display); letter-spacing: 0.1em; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+.tbtn { width: 62px; height: 62px; border-radius: 50%; padding: 0; direction: ltr; }
+.tchip { height: 34px; min-width: 46px; padding: 0 10px; border-radius: 17px; }
+.tbtn.on, .tchip.on, #touch-pause.on { background: rgba(143, 211, 255, 0.32); border-color: var(--ice); }
+#touch-main .tbtn:nth-child(8) { border-color: var(--danger); color: var(--danger); }
+#touch-pause {
+  position: fixed; top: 8px; left: calc(max(8px, env(safe-area-inset-left)) + 184px); width: 38px; height: 38px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0;
+}
+#touch-pause span { width: 4px; height: 13px; background: var(--ink); }
+.rotate-hint { display: none; }
+@media (orientation: portrait) {
+  body.touch .rotate-hint {
+    display: grid; place-items: center; position: fixed; inset: 0; z-index: 80; background: var(--bg); text-align: center; padding: 24px;
+  }
+  .rotate-hint div { display: flex; flex-direction: column; gap: 8px; }
+  .rotate-hint b { font: 700 22px var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+  .rotate-hint span { color: var(--muted); }
+}
+/* Short screens (phones in landscape): menus scroll and shrink. */
+@media (max-height: 500px) {
+  .screen { overflow-y: auto; place-items: start center; }
+  .title-block { gap: 8px; margin: auto 0; }
+  .title-block h1 { font-size: 34px; }
+  .title-block h2 { font-size: 24px; }
+  .tagline { font-size: 14px; }
+  .brief { font-size: 13px; gap: 3px; }
+  .btn { padding: 8px 22px; font-size: 13px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #warning, .gauge.crit .bar i { animation: none; }
   .toast { animation: none; }

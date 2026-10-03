@@ -16,7 +16,7 @@ import { ShipSim, SHIP, smoothstep } from '../sim/ship.js';
 import { ShipSystems, SuitSystems } from '../sim/hazards.js';
 import { solarFlux, radiationDose, surfaceTemperature, sunlightTransmission, atmosphereAt } from '../sim/environment.js';
 import { Walker, WALK } from '../sim/walker.js';
-import { Engine, PROXIMA_TIERS } from '../render/engine.js';
+import { Engine, PROXIMA_TIERS, RENDER_HEIGHT } from '../render/engine.js';
 import { Assets } from '../render/assets.js';
 import { WorldRenderer } from '../render/world.js';
 import { ShipModel } from '../render/shipModel.js';
@@ -29,6 +29,7 @@ import { TerrainWorkers, Terrain } from '../terrain/terrain.js';
 import { createDetailTexture } from '../terrain/terrainMaterial.js';
 import { CameraRig } from './cameraRig.js';
 import { Input } from './input.js';
+import { IS_TOUCH, TouchControls } from './touch.js';
 import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
@@ -52,6 +53,7 @@ const GROUND_LOOK = {
 };
 
 // Optical "visibility" of the air near the ground (m) for aerial perspective.
+const clamp1 = (v) => Math.max(-1, Math.min(1, v));
 const REPAIR_TIME = 120; // s grounded after a crash landing
 const repairClock = (s) => { const t = Math.ceil(Math.max(0, s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3, proxb: 55e3 };
@@ -117,6 +119,7 @@ export class Game {
 
     this.rig = new CameraRig(eng.camera);
     this.input = new Input(eng.canvas);
+    this.touch = IS_TOUCH ? new TouchControls(this.input) : null;
     this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), this.sys.nav);
     this.audio = new AudioEngine();
 
@@ -250,7 +253,8 @@ export class Game {
     if (this.state !== 'play') return;
     this.state = 'paused';
     $('pause').classList.add('visible');
-    $('quality-label').textContent = `Rendering at 1080p · quality ${this.engine.quality.name} · ${this.engine.fps.toFixed(0)} fps (keeps at least ${this.engine.minFps})`;
+    this.hud.show(false);
+    $('quality-label').textContent = `Rendering at ${RENDER_HEIGHT}p · quality ${this.engine.quality.name} · ${this.engine.fps.toFixed(0)} fps (keeps at least ${this.engine.minFps})`;
     this.input.releaseLock();
   }
 
@@ -258,6 +262,7 @@ export class Game {
     if (this.state !== 'paused') return;
     this.state = 'play';
     $('pause').classList.remove('visible');
+    this.hud.show(true);
     $('help').hidden = true;
     this.audio.start();
     this.input.requestLock();
@@ -620,17 +625,17 @@ export class Game {
     }
     if (this.onFoot) {
       const w = this.walker.input;
-      w.forward = inp.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
-      w.right = inp.axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']);
+      w.forward = clamp1(inp.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']) - inp.analog.y);
+      w.right = clamp1(inp.axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']) + inp.analog.x);
       w.run = inp.down('ShiftLeft', 'ShiftRight');
       w.jet = inp.down('Space');
       w.down = inp.down('KeyC', 'ControlLeft');
       return;
     }
-    s.thrust = inp.axis(['KeyS'], ['KeyW']);
+    s.thrust = clamp1(inp.axis(['KeyS'], ['KeyW']) - inp.analog.y);
     s.lift = inp.axis(['KeyC', 'ControlLeft'], ['Space']);
     s.strafe = inp.axis(['KeyQ'], ['KeyR']);
-    s.roll = inp.axis(['KeyD'], ['KeyA']);
+    s.roll = clamp1(inp.axis(['KeyD'], ['KeyA']) - inp.analog.x);
     const kbPitch = inp.axis(['ArrowDown'], ['ArrowUp']);
     const kbYaw = inp.axis(['ArrowRight'], ['ArrowLeft']);
     s.pitch = Math.max(-1, Math.min(1, -inp.stick.y + kbPitch));
@@ -1442,6 +1447,20 @@ export class Game {
       }
     }
     this.updateKeysPanel();
+    if (this.touch && this.clock - (this.lastTouchUpdate || 0) > 0.15) {
+      this.lastTouchUpdate = this.clock;
+      const near = this.life?.nearCrate();
+      this.touch.update({
+        playing: this.state === 'play',
+        foot: this.onFoot,
+        flying: ship.mode === 'flight' || ship.mode === 'pulse',
+        landed: ship.mode === 'landed',
+        pulse: ship.mode === 'pulse',
+        armed: !!this.life?.weapon.has,
+        lowOverGround: !!body.def.terrain && telemetry.ground < 1500,
+        useLabel: this.onFoot ? (near ? 'OPEN' : 'BOARD') : 'EXIT',
+      });
+    }
     // Virtual stick indicator.
     const st = $('stick');
     if (st) {

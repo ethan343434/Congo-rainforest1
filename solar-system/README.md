@@ -79,6 +79,16 @@ python3 -m http.server 8000
 Then open <http://localhost:8000/solar-system/> (use `localhost`, not `[::]`).
 A desktop browser with WebGL 2 and a keyboard and mouse is best.
 
+### On a phone or tablet
+
+Touch screens get on-screen controls: a joystick under the left thumb (thrust and
+roll in the ship, walking on foot), drag with the right thumb to steer or look, round
+buttons to hold (up, down, boost, brake, jump, run, fire) and small ones to tap
+(exit/board, land, autopilot, warp, pulse, target, view, scan, lights). Play in
+landscape. Phones render at a fixed 720p instead of 1080p. On Windows,
+`Play on Phone (same Wi-Fi).bat` serves the game to a phone on the same network;
+`?touch=1` or `?touch=0` in the address forces touch controls on or off.
+
 ## Controls
 
 | Key | In the ship | On foot |
@@ -129,6 +139,7 @@ src/main.js                 entry point
 src/game/game.js            game loop, states, controls, hazards, camera, HUD wiring
 src/game/cameraRig.js       chase / cockpit / on-foot cameras
 src/game/input.js           keyboard + mouse virtual stick
+src/game/touch.js           on-screen joystick and buttons for touch screens
 src/data/bodies.js          33 bodies: physical data, atmospheres, terrain, facts, survivability
 src/data/proxima.js         the Proxima Centauri system; src/data/systems.js picks the system
 src/game/proximaLife.js     Proxima b's creatures, plants, supply crates and laser rifle

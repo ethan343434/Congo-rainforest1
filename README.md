@@ -16,6 +16,8 @@ generated in code.
 this folder and opens the game in your browser. Keep its window open while you play.
 `Play Sol Voyager.bat` and `Play Proxima b.bat` start the space game the same way. If
 Windows shows "Windows protected your PC", click **More info → Run anyway**.
+To play Sol Voyager on an iPhone or iPad, run `Play on Phone (same Wi-Fi).bat` and open
+the address it prints in Safari on the phone (same Wi-Fi as the PC).
 
 ### Running it by hand
 

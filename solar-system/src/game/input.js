@@ -2,7 +2,8 @@
 // input.js — keyboard + mouse. The mouse drives a "virtual stick": with
 // pointer lock, mouse movement pushes the stick, which slowly re-centres; if
 // pointer lock isn't available (some embedded frames), drag with the left
-// button instead. Key presses are queued as one-shot actions.
+// button instead. Key presses are queued as one-shot actions. Touch controls
+// (touch.js) feed the same keys, stick and look, plus the analog joystick.
 // =============================================================================
 
 export class Input {
@@ -12,6 +13,7 @@ export class Input {
     this.actions = [];          // one-shot key presses (codes)
     this.stick = { x: 0, y: 0 }; // -1..1 steering (x = yaw, y = pitch)
     this.look = { dx: 0, dy: 0 }; // raw mouse look deltas (on foot)
+    this.analog = { x: 0, y: 0 }; // touch joystick: x right, y down (-1..1)
     this.wheel = 0;
     this.locked = false;
     this.dragging = false;
