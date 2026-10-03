@@ -11,14 +11,22 @@
 
 You are building a **playable 3D first-person survival game** called **"Congo
 Crash."** The player is the sole survivor of a plane crash in the dense Congo
-rainforest and must explore, survive the wildlife, and find a way out. Deliver a
-game that **runs in a web browser with no install step** and **starts in a
-playable state on the first try**.
+rainforest. The forest is **dim and maze-like**: the player moves through it in
+**first person, guided by a flashlight**, navigating winding overgrown paths and
+dead ends while surviving the wildlife, searching for the way out — **the exit
+is a small native village** on the far side of the forest. Deliver a game that
+**runs in a web browser with no install step** and **starts in a playable state
+on the first try**.
 
-The single most important success criterion: **a person can open the game, move
-around a 3D jungle, encounter animals, watch day turn to night, and reach a win
-or lose state.** A beautiful engine that doesn't boot is a failure; a simple
-world that actually plays is a success. Prioritize accordingly.
+The core experience to nail: **a tense walk through a dark, disorienting jungle
+maze, flashlight sweeping across trees, not sure which way leads out, animals
+lurking — until the lights of a native village finally appear.**
+
+The single most important success criterion: **a person can open the game, walk
+through the dim maze-like forest with their flashlight, encounter animals, and
+either reach the native village (win) or die (lose).** A beautiful engine that
+doesn't boot is a failure; a simple world that actually plays is a success.
+Prioritize accordingly.
 
 ---
 
@@ -50,22 +58,40 @@ of `index.html` before changing it — but default to this.
   low-resolution heightmap), bounded so the player cannot walk off the edge —
   use dense impassable foliage or a subtle invisible wall as the boundary, not a
   hard visible cliff.
-- **Tall trees, densely placed** — this is the signature look. Scatter hundreds
-  of trees procedurally with varied height and rotation so the forest feels
-  deep and enclosing. Use fog (greenish, moderate density) to hide the draw
-  distance and sell the "lost in the jungle" claustrophobia.
+- **The forest is a maze.** This is central, not decoration. Lay out walls of
+  impassably dense trees/undergrowth so the player moves along **winding paths,
+  forks, and dead ends** and genuinely has to figure out the route from the
+  crash site to the village. Two reasonable approaches:
+  - **(Recommended) Generate a grid maze** (e.g. recursive backtracker /
+    randomized DFS), then "dress" its walls with dense tree instances and its
+    corridors with a walkable forest-floor path. This guarantees a solvable
+    maze with exactly one start (crash site) and one exit (village).
+    Optionally re-randomize the maze on each new game for replayability.
+  - Or hand-author a smaller fixed labyrinth of clearings and overgrown
+    corridors. Either way: **it must be solvable**, and there should be a real
+    sense of "which way do I go?"
+- **Dim and enclosing by default.** Tall, densely placed trees with a thick
+  canopy keep the forest shadowy even in daytime; use fog (greenish, moderate
+  density) and relatively low ambient light so the player leans on the
+  flashlight to see the path ahead. This is the signature mood — disorienting,
+  claustrophobic, not sure what's around the next bend.
 - **At least one river** winding through the terrain: a semi-transparent blue
   plane with gentle animated UVs or vertex motion. Rivers are where crocodiles
-  and hippos live and are dangerous to cross.
-- Undergrowth: ferns, bushes, fallen logs, rocks scattered as ground detail.
+  and hippos live and are dangerous to cross. A river can double as a maze
+  obstacle (a corridor the player must cross at a shallow point or log bridge).
+- Undergrowth: ferns, bushes, fallen logs, rocks scattered as ground detail,
+  and to thicken the maze walls.
 - **The crashed plane** sits in a small clearing and is the player's spawn
-  point / landmark. It's where the game begins.
-- An **extraction objective** somewhere far across the map (see §6).
+  point / landmark — the maze entrance. It's where the game begins.
+- **The native village** is the maze exit and win condition (see §6): a small
+  cluster of huts, a fire/torches, and visible light that the player is drawn
+  toward. Place it at the far end of the maze from the crash site.
 
 Performance: the forest will be the heaviest cost. Use **instanced meshes**
 (`InstancedMesh`) for trees and foliage. Target a smooth frame rate on a normal
 laptop — if you must choose, reduce tree count or draw distance rather than ship
-something that stutters.
+something that stutters. (The dimness + fog conveniently let you keep draw
+distance short.)
 
 ## 4. Creatures
 
@@ -99,27 +125,46 @@ detect player (by distance + optional line of sight) → chase → attack (on
 cooldown) → return`. Keep it simple and readable; favor a few animals that work
 over many that half-work.
 
-## 5. Day / night cycle
+## 5. Lighting, flashlight & day / night cycle
+
+**The flashlight is the core mechanic, not an accessory.** Because the forest is
+dim at all times (thick canopy + fog + low ambient light), the player sees the
+maze mainly through their flashlight:
+
+- Implement it as a **spotlight attached to the camera** (plus a small point
+  light so the player isn't in pitch black), toggleable with **F**. It should
+  cast a believable cone down the path and across tree trunks.
+- The flashlight is **on by default** and central to navigation — sweep it to
+  spot the path, forks, animals' eyeshine, and the village glow.
+- Optionally give it a **battery that slowly drains** and can be recharged from
+  pickups found in the maze — this adds tension without being punishing. If a
+  battery mechanic risks softlocking the player in the dark, make it generous or
+  make it optional.
+
+**Day / night cycle** (keeps the world alive and ramps difficulty):
 
 - A continuously advancing clock (a full cycle in a few real minutes — make the
   duration a tunable constant).
 - A **directional "sun" light** that arcs across the sky; sky color, fog color,
-  and ambient light interpolate through dawn → day → dusk → night.
-- **Night is meaningfully harder and darker:** lower visibility, more aggressive
-  or more numerous predators, and the player relies on a limited **flashlight /
-  torch** (a spotlight attached to the camera, toggleable, optionally with a
-  battery/fuel limit). Night should feel tense, not merely dim.
+  and ambient light interpolate through dawn → day → dusk → night. Even "day"
+  stays shadowy under the canopy — the flashlight always matters.
+- **Night is meaningfully harder:** near-total darkness beyond the flashlight
+  cone, more aggressive or more numerous predators. Night should feel genuinely
+  frightening.
 - Show the current time / day count in the HUD.
 
 ## 6. Core gameplay loop & win/lose conditions
 
-Give the game an actual point — the player asked to "find a way out."
+Give the game an actual point — the player must find their way out of the maze.
 
-- **Goal:** find the way out of the jungle. Concretely: locate a small number of
-  objectives (e.g. **3 supply/parts caches** scattered across the map, or a
-  radio + fuel + a path marker) and then reach the **extraction point** (a river
-  boat, a ranger station, or a clearing with a rescue signal). Reaching
-  extraction with the objectives met = **WIN**.
+- **Goal:** navigate the dim forest maze from the crash site and **reach the
+  small native village** on the far side. Reaching the village = **WIN**.
+- Keep the primary objective simple: *get to the village alive.* The maze itself
+  is the challenge. Optionally sprinkle a few **pickups along the way**
+  (flashlight batteries, bandages/med supplies, maybe a torn map fragment that
+  hints at the direction) to reward exploration — but do not gate the win behind
+  fetch-quests unless the core maze already plays well. Finding the route and
+  surviving the animals is the game.
 - **Survival pressures** (pick a sensible subset; don't over-build):
   - **Health** — depleted by animal attacks; game over at zero = **LOSE**.
   - **Stamina** — sprinting drains it, it regenerates when resting.
@@ -172,10 +217,11 @@ index.html          # entry point, canvas, UI overlays, loads main.js as a modul
 styles.css          # HUD and menu styling
 src/
   main.js           # bootstrap, game loop, state machine (menu/playing/win/lose)
-  world.js          # terrain, trees (instanced), river, foliage, crash site
-  player.js         # first-person controller, movement, collision, stats
+  maze.js           # maze generation (grid) + layout data, start/exit cells
+  world.js          # terrain, trees (instanced) dressing the maze, river, village, crash site
+  player.js         # first-person controller, movement, collision, stats, flashlight
   animals.js        # animal models + AI state machines + spawner
-  dayNight.js       # clock, sun light, sky/fog interpolation, flashlight
+  dayNight.js       # clock, sun light, sky/fog interpolation, dim-lighting curve
   ui.js             # HUD, menus, objective tracking, screens
   audio.js          # optional; safe no-op if audio unavailable
 README.md           # one-paragraph premise + exact run command + controls
@@ -185,23 +231,29 @@ Adjust if you have a cleaner structure, but keep concerns separated.
 
 ## 11. Build order (do this in sequence so there's always a runnable game)
 
-1. Boot a Three.js scene: ground, sky, fog, a first-person camera that moves
-   with WASD + mouse-look. **Verify it runs.**
-2. Add the forest (instanced trees), river, crash-site spawn, and world bounds +
-   tree collision.
+1. Boot a Three.js scene: ground, dim sky, fog, a first-person camera that moves
+   with WASD + mouse-look, and the **flashlight** (camera spotlight). **Verify it
+   runs.**
+2. Generate the **maze layout** and build its walls from instanced trees, with a
+   walkable path, the crash-site entrance, and collision so walls block movement.
+   Place the **native village** at the far exit. Confirm the maze is solvable.
 3. Add player stats (health/stamina) and the HUD.
-4. Add the day/night cycle and flashlight.
-5. Add animals — start with one hostile (alligator at the river) and one passive,
+4. Add the day/night cycle and tune the dim lighting around the flashlight.
+5. Add animals — start with one hostile (crocodile at the river) and one passive,
    then expand. Wire up damage and death.
-6. Add objectives, the extraction point, and win/lose screens + restart.
-7. Polish: audio, more animals, night difficulty, undergrowth detail, balancing.
+6. Add the **win trigger at the village**, optional pickups, and win/lose screens
+   + restart.
+7. Polish: audio, more animals, night difficulty, undergrowth detail, balancing,
+   village lighting/glow as a navigation beacon.
 
 After each step the game should still open and play. Commit logically.
 
 ## 12. Stretch goals (only after the core is solid)
 
 - Simple inventory and crafting (torch from branch + cloth, etc.).
-- A minimap or compass pointing toward the next objective.
+- A minimap or compass — but consider leaving it out, since getting lost is the
+  point; a partial/fogged map found as a pickup is a good middle ground.
+- Distant village glow or sound as a faint directional beacon through the trees.
 - Weather (rain, affecting visibility/sound).
 - Save/restore progress via `localStorage`.
 - More elaborate animal models and animations.
