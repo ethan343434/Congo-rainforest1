@@ -12,6 +12,13 @@ generated in code.
 
 ## How to run
 
+**On Windows, double-click `Play Congo Crash.bat`.** It starts a small local server in
+this folder and opens the game in your browser. Keep its window open while you play.
+`Play Sol Voyager.bat` and `Play Proxima b.bat` start the space game the same way. If
+Windows shows "Windows protected your PC", click **More info → Run anyway**.
+
+### Running it by hand
+
 Browsers block ES modules on pages opened straight from disk, so serve the folder:
 
 ```bash
