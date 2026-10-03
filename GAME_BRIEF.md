@@ -23,10 +23,11 @@ maze, flashlight sweeping across trees, not sure which way leads out, animals
 lurking — until the lights of a native village finally appear.**
 
 The single most important success criterion: **a person can open the game, walk
-through the dim maze-like forest with their flashlight, encounter animals, and
-either reach the native village (win) or die (lose).** A beautiful engine that
-doesn't boot is a failure; a simple world that actually plays is a success.
-Prioritize accordingly.
+through the dim maze-like forest with their flashlight from the central crash
+site, hit wrong paths that loop back or get them killed (respawning at the crash
+site), and eventually find the true route to the native village (win).** A
+beautiful engine that doesn't boot is a failure; a simple world that actually
+plays is a success. Prioritize accordingly.
 
 ---
 
@@ -58,18 +59,31 @@ of `index.html` before changing it — but default to this.
   low-resolution heightmap), bounded so the player cannot walk off the edge —
   use dense impassable foliage or a subtle invisible wall as the boundary, not a
   hard visible cliff.
-- **The forest is a maze.** This is central, not decoration. Lay out walls of
-  impassably dense trees/undergrowth so the player moves along **winding paths,
-  forks, and dead ends** and genuinely has to figure out the route from the
-  crash site to the village. Two reasonable approaches:
-  - **(Recommended) Generate a grid maze** (e.g. recursive backtracker /
-    randomized DFS), then "dress" its walls with dense tree instances and its
-    corridors with a walkable forest-floor path. This guarantees a solvable
-    maze with exactly one start (crash site) and one exit (village).
-    Optionally re-randomize the maze on each new game for replayability.
-  - Or hand-author a smaller fixed labyrinth of clearings and overgrown
-    corridors. Either way: **it must be solvable**, and there should be a real
-    sense of "which way do I go?"
+- **The forest is a maze with the crash site at its CENTER (a hub).** This is
+  central, not decoration. Several paths **radiate out from the crash site**,
+  but only **one true route** eventually reaches the village. The others are
+  wrong paths — they **wind and wrap around in confusing, looping ways** and
+  either:
+  - **loop back to the crash site** in the center (so the player realizes
+    they've gone in a circle), or
+  - **lead into a hazard zone** — the river with its dangerous animals, a
+    predator nest, or a mosquito-swarm thicket (see §4) — that damages or kills
+    the player.
+
+  How to build it:
+  - **(Recommended) Generate a grid/graph maze** (e.g. recursive backtracker),
+    place the start cell at the center, then **braid it** — knock out some extra
+    walls to create loops and multiple routes so wrong paths curve back on
+    themselves instead of ending in clean dead ends. Pick one far cell as the
+    village exit and compute the true path to it. Mark several other branches as
+    "wrong": route them back toward the center or into a hazard clearing.
+    Optionally re-randomize each new game for replayability.
+  - Or hand-author a smaller radial labyrinth of overgrown corridors.
+  - Either way: **the true route to the village must exist and be solvable**,
+    the wrong routes should feel disorienting (loop back / wrap around), and at
+    least some wrong routes must open into the hazard zones below.
+  - The confusing wrap-around is the intended feel: the dim lighting, repeated
+    tree instances, and fog should make it genuinely hard to tell paths apart.
 - **Dim and enclosing by default.** Tall, densely placed trees with a thick
   canopy keep the forest shadowy even in daytime; use fog (greenish, moderate
   density) and relatively low ambient light so the player leans on the
@@ -81,11 +95,16 @@ of `index.html` before changing it — but default to this.
   obstacle (a corridor the player must cross at a shallow point or log bridge).
 - Undergrowth: ferns, bushes, fallen logs, rocks scattered as ground detail,
   and to thicken the maze walls.
-- **The crashed plane** sits in a small clearing and is the player's spawn
-  point / landmark — the maze entrance. It's where the game begins.
+- **The crashed plane** sits in a small clearing at the **center of the forest**
+  — the hub the maze radiates from, the spawn point, and the **respawn point on
+  death** (see §6). Make it a recognizable landmark (wreckage, smoke, a bit of
+  light) so the player knows when they've looped back to it.
+- **Hazard zones** sit at the ends of some wrong paths: the river (crocodiles /
+  hippos), a predator **nest** (clustered aggressive animals), and a **mosquito-
+  swarm thicket**. Entering/lingering drains health fast; see §4 and §6.
 - **The native village** is the maze exit and win condition (see §6): a small
   cluster of huts, a fire/torches, and visible light that the player is drawn
-  toward. Place it at the far end of the maze from the crash site.
+  toward. Place it at the far end of the true route from the crash site.
 
 Performance: the forest will be the heaviest cost. Use **instanced meshes**
 (`InstancedMesh`) for trees and foliage. Target a smooth frame rate on a normal
@@ -114,6 +133,14 @@ Implement at minimum:
 - **Hippopotamus** — near rivers/wetland; territorial and extremely dangerous if
   the player gets between it and the water. Charges. (Optional but a great
   Congo-authentic threat.)
+- **Mosquito swarm** — a drifting cloud (particle system / sprite swarm) in
+  certain damp thickets at the ends of wrong paths. It doesn't chase far, but
+  **continuously claws at the health bar** while the player is inside it, and can
+  kill if they don't retreat. A cheap, nasty hazard that teaches "this was the
+  wrong way."
+- **Predator nest** — a clearing with **several clustered aggressive animals**
+  (snakes or a leopard pair) that all detect and converge on the player at once.
+  A wrong path that turns deadly fast.
 - **Passive creatures** — Congo natives such as **forest elephants**, **western
   lowland gorillas** (keep them passive unless provoked), **okapi** or a small
   **duiker** antelope, **monkeys** in the canopy, and birds. Harmless, add life
@@ -122,8 +149,9 @@ Implement at minimum:
 
 Each hostile animal needs a minimal **AI state machine**: `idle/patrol →
 detect player (by distance + optional line of sight) → chase → attack (on
-cooldown) → return`. Keep it simple and readable; favor a few animals that work
-over many that half-work.
+cooldown) → return`. The mosquito swarm is simpler — a damage volume: while the
+player is inside its radius, drain health per second. Keep it simple and
+readable; favor a few animals that work over many that half-work.
 
 ## 5. Lighting, flashlight & day / night cycle
 
@@ -165,16 +193,33 @@ Give the game an actual point — the player must find their way out of the maze
   hints at the direction) to reward exploration — but do not gate the win behind
   fetch-quests unless the core maze already plays well. Finding the route and
   surviving the animals is the game.
+- **Death = respawn at the crash site (the hub), not game over.** When health
+  hits zero — mauled by an animal, caught in the nest, or drained by the
+  mosquito swarm — the player **respawns back at the crash site in the center**
+  with health restored, and tries a different path. This is the core rhythm:
+  venture out → wrong path loops back or kills you → respawn at the hub → pick a
+  different direction → eventually find the true route to the village. Fade to
+  black and back on death, and show a brief "You were killed by …" line so the
+  player learns what got them.
+  - Give respawn a small cost so death still stings: e.g. **reset to the hub and
+    lose a chunk of daylight** (time jumps forward / a death counter ticks up),
+    or drop any carried batteries. Keep it fair, not punishing.
+  - **Optional true LOSE:** if you want a fail state, cap it at a number of
+    deaths or have the day counter run out — then show a real game-over screen.
+    If in doubt, infinite respawns + a death counter is fine; the win is the
+    goal, not the lose.
 - **Survival pressures** (pick a sensible subset; don't over-build):
-  - **Health** — depleted by animal attacks; game over at zero = **LOSE**.
-  - **Stamina** — sprinting drains it, it regenerates when resting.
+  - **Health** — depleted by animal attacks and the mosquito swarm; zero =
+    death + respawn at the hub (above).
+  - **Stamina** — sprinting drains it, it regenerates when resting. Sprinting
+    matters for escaping predators and the swarm back toward safe paths.
   - Optionally **hunger/thirst or warmth** that ticks down and must be managed
     (eat gathered fruit, drink from safe water). Keep it light; a frustrating
     meter is worse than none.
-- Clear **start, win, and lose screens.** Start screen explains the premise and
-  controls and has a "Begin" button (also needed to trigger pointer-lock on
-  click). Win/lose screens show stats (days survived, objectives found) and a
-  restart button.
+- Clear **start and win screens** (and a lose screen only if you add a true fail
+  state). Start screen explains the premise and controls and has a "Begin"
+  button (also needed to trigger pointer-lock on click). Win screen shows stats
+  (time taken, deaths/respawns) and a restart button.
 
 ## 7. Controls & HUD
 
@@ -207,8 +252,11 @@ sound would attach. Never block the game from loading on an audio asset.
    future editor's comprehension.
 4. **Graceful degradation** — if something optional fails, the game still plays.
 5. **No placeholder "TODO: implement later" in the core loop.** Movement,
-   collision with trees/terrain, at least two working hostile animals, the
-   day/night cycle, health/damage, and win+lose must all actually function.
+   collision with maze walls/terrain, a solvable route to the village, wrong
+   paths that loop back or hit hazards, at least two working hostile threats
+   (one animal + the mosquito swarm), the day/night cycle, health/damage,
+   death→respawn at the crash site, and the village win must all actually
+   function.
 
 ## 10. Suggested file layout
 
@@ -234,15 +282,18 @@ Adjust if you have a cleaner structure, but keep concerns separated.
 1. Boot a Three.js scene: ground, dim sky, fog, a first-person camera that moves
    with WASD + mouse-look, and the **flashlight** (camera spotlight). **Verify it
    runs.**
-2. Generate the **maze layout** and build its walls from instanced trees, with a
-   walkable path, the crash-site entrance, and collision so walls block movement.
-   Place the **native village** at the far exit. Confirm the maze is solvable.
-3. Add player stats (health/stamina) and the HUD.
+2. Generate the **maze layout** with the crash site at the center, build its
+   walls from instanced trees with a walkable path and collision, braid it so
+   wrong paths loop back, and place the **native village** at the far end of the
+   true route. Confirm the true route is solvable.
+3. Add player stats (health/stamina), the HUD, and **respawn-at-crash-site on
+   death**.
 4. Add the day/night cycle and tune the dim lighting around the flashlight.
-5. Add animals — start with one hostile (crocodile at the river) and one passive,
-   then expand. Wire up damage and death.
-6. Add the **win trigger at the village**, optional pickups, and win/lose screens
-   + restart.
+5. Add animals + hazard zones — start with one hostile (crocodile at the river)
+   and the mosquito swarm, then add the nest and a passive animal. Wire up damage
+   and death→respawn.
+6. Add the **win trigger at the village**, optional pickups, and the win screen
+   (+ optional lose screen) + restart.
 7. Polish: audio, more animals, night difficulty, undergrowth detail, balancing,
    village lighting/glow as a navigation beacon.
 
