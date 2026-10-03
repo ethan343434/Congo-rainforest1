@@ -70,7 +70,9 @@ A desktop browser with WebGL 2 and a keyboard and mouse is best.
 | Arrow keys | Pitch / yaw without a mouse | Walk |
 | `H`, `M`, `O`, `Esc` | Help, mute, fps counter, pause | same |
 
-Mouse wheel zooms the camera. Click a planet in the left compass to target it.
+Mouse wheel zooms the camera. Click a planet in the left compass to target it. The
+**Controls** panel on the right lists what each key does at that moment, ship or on foot,
+and dims keys you can't use right now. `Tab` hides it.
 
 ## Graphics and performance
 

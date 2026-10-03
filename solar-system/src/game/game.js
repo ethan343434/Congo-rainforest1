@@ -500,6 +500,10 @@ export class Game {
         case 'KeyM': this.audio.setMuted(!this.audio.muted); this.hud.toast('Sound', this.audio.muted ? 'Muted' : 'On', '', 2); break;
         case 'KeyF': this.toggleLights(); break;
         case 'KeyO': this.showFps = !this.showFps; break;
+        case 'Tab':
+          this.keysHidden = !this.keysHidden;
+          try { localStorage.setItem('solv-keys-hidden', this.keysHidden ? '1' : '0'); } catch (e) { /* storage blocked */ }
+          break;
         case 'Space': if (this.onFoot) this.walker.input.jump = true; break;
         default:
           if (code.startsWith('Digit')) {
@@ -1285,6 +1289,7 @@ export class Game {
         el.classList.toggle('dilated', d > 1.05);
       }
     }
+    this.updateKeysPanel();
     // Virtual stick indicator.
     const st = $('stick');
     if (st) {
@@ -1304,6 +1309,71 @@ export class Game {
     if (dmg) dmg.style.opacity = (this.damageFlash * 0.6).toFixed(3);
     const danger = this.warnings.some((w) => w.level === 'danger');
     this.audio.alarm(this.clock, danger && this.state === 'play');
+  }
+
+  // ---- Controls panel (right side): what each key does right now ------------------------------
+  updateKeysPanel() {
+    if (this.keysHidden === undefined) {
+      try { this.keysHidden = localStorage.getItem('solv-keys-hidden') === '1'; } catch (e) { this.keysHidden = false; }
+    }
+    if (this.clock - (this.lastKeysUpdate || 0) < 0.2) return;
+    this.lastKeysUpdate = this.clock;
+    const panel = $('keys'), tab = $('keys-tab');
+    if (!panel) return;
+    const ship = this.ship, t = ship.telemetry;
+    const foot = this.onFoot;
+    const flying = ship.mode === 'flight' || ship.mode === 'pulse';
+    const landed = ship.mode === 'landed';
+    const hasTarget = !!this.target;
+    const nearShip = foot && this.walker.distanceToShip() < 13;
+    const lowSlow = ship.mode === 'flight' && this.currentBody().def.terrain && t.ground < 1500;
+    // [keys, what it does, available now?, highlighted?]
+    const rows = foot ? [
+      [['Mouse'], 'Look around', true],
+      [['W', 'A', 'S', 'D'], 'Walk', true],
+      [['Shift'], 'Run', true],
+      [['Space'], 'Jump · hold in the air for the jetpack', true],
+      [['C'], 'Jetpack down', !this.walker.onGround],
+      [['E'], 'Board the ship', nearShip, nearShip],
+      [['V'], 'Third / first person', true],
+      [['F'], `Helmet lamp ${this.lightsOn ? 'off' : 'on'}`, true],
+      [['I'], 'Scan: facts and survivability', true],
+      [['T', '0–9'], 'Choose a target', true],
+      [['M'], this.audio.muted ? 'Sound on' : 'Mute', true],
+      [['Esc'], 'Pause', true],
+    ] : [
+      [['Mouse'], 'Steer (click the view first)', flying],
+      [['W', 'S'], 'Thrust forward / reverse', !landed],
+      [['A', 'D'], 'Roll', flying],
+      [['Space', 'C'], landed ? 'Take off / thrust down' : 'Thrust up / down', true],
+      [['Shift'], 'Boost', !landed],
+      [['X'], 'Brake to a stop', flying],
+      [['T', '0–9'], 'Choose a target', true],
+      [['K'], hasTarget ? `Warp to ${this.target.name}` : 'Warp drive (needs a target)', hasTarget && !landed, false],
+      [['G'], ship.autopilot ? 'Cancel autopilot' : 'Autopilot to the target', hasTarget && !landed],
+      [['J'], ship.mode === 'pulse' ? 'Leave pulse drive' : 'Pulse drive (faster than light)', flying],
+      [['L'], 'Auto-land', !!lowSlow, !!lowSlow],
+      [['E'], 'Step outside', landed, landed],
+      [['Z'], ship.flightAssist ? 'Flight assist off' : 'Flight assist on', flying],
+      [['V'], this.rig.mode === 'chase' ? 'Cockpit view' : 'Chase view', true],
+      [['F'], `Landing lights ${this.lightsOn ? 'off' : 'on'}`, true],
+      [['I'], 'Scan: facts and survivability', true],
+      [['Wheel'], 'Zoom the camera', true],
+      [['M'], this.audio.muted ? 'Sound on' : 'Mute', true],
+      [['Esc'], 'Pause', true],
+    ];
+    const html = rows.map(([keys, label, on, hot]) => `<li class="${on ? '' : 'off'}${hot ? ' hot' : ''}"><span class="k">${keys.map((k) => `<kbd>${k}</kbd>`).join('')}</span><span class="d">${label}</span></li>`).join('');
+    if (this.keysHtml !== html) { this.keysHtml = html; $('keys-list').innerHTML = html; }
+    $('keys-mode').textContent = foot ? 'ON FOOT' : 'SHIP';
+    // Fit between the target panel and the status panel; hide if there is no room.
+    const tgt = $('target').getBoundingClientRect(), st = $('status').getBoundingClientRect();
+    const top = (tgt.height ? tgt.bottom : 16) + 10;
+    const room = st.top - 10 - top;
+    const show = !this.keysHidden && room > 140;
+    panel.hidden = !show;
+    tab.hidden = show || room < 30;
+    if (show) { panel.style.top = `${top}px`; panel.style.maxHeight = `${room}px`; }
+    else tab.style.top = `${top}px`;
   }
 
   updateAudio() {
