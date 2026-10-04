@@ -23,8 +23,12 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   clock goes back to now and your progress is cleared. The pause menu has Reset too.
   Each body's scanner entry has a survivability rating: Lethal, Hostile, Suit required or
   Habitable.
+- **Mars.** Olympus Mons stands at its real place in full detail: a 600 km shield 21.9 km
+  high, a 6–8 km cliff around its base and calderas 3 km deep, labelled from orbit. On the
+  surface time runs 3,000× faster, so a whole sol passes in about 30 seconds.
 - **The Devourer (optional).** Switch it on in the pause menu and an original cosmic giant
-  eats the Solar System, starting with Mercury (each planet's moons, then the planet). Be on
+  flies through the Solar System as a physical body (gravity, collisions, a target you can
+  warp to and scan) eating it, starting with Mercury (each planet's moons, then the planet). Be on
   or next to a world while it is eaten and you go with it. When every world is gone it dives
   into the black hole, eats Proxima's planets, then hunts you; the pulse drive can outrun it.
   Its progress is saved in the browser; Reset game brings every world back.
@@ -92,7 +96,7 @@ buttons to hold (up, down, boost, brake, jump, run, fire) and small ones to tap
 (exit/board, land, autopilot, warp, pulse, target, view, scan, lights). The game is
 always landscape: if the phone shows the page in portrait (for example with the iPhone's
 Portrait Orientation Lock on, to play lying down) the whole game is turned sideways, and
-**Flip screen** in the pause menu turns it the other way round. Phones render at a fixed 720p instead of 1080p. On Windows,
+**Flip screen** in the pause menu turns it the other way round. On Windows,
 `Play on Phone (same Wi-Fi).bat` serves the game to a phone on the same network;
 `?touch=1` or `?touch=0` in the address forces touch controls on or off.
 

@@ -178,7 +178,12 @@ export const BODIES = [
       heightmap: { file: 'mars_height.jpg', scale: 29.4 * KM, offset: -8.2 * KM },
       craters: { density: 0.28, maxRadius: 12 * KM, minRadius: 1.0, depth: 0.7 },
       noise: { amp: 380, scale: 6 * KM }, dunes: { amp: 35, wavelength: 260 }, rocks: 1.6,
+      // Olympus Mons in full detail (the global map is ~21 km per pixel): a
+      // 600 km shield 21.9 km high, ringed by a 6–8 km cliff, with nested
+      // summit calderas 3 km deep (Mars Global Surveyor MOLA / Mars Express).
+      volcano: { lat: 18.65, lon: -133.8, radius: 300 * KM, summit: 21.9 * KM, cliffTop: 7.5 * KM, plains: -1.2 * KM, caldera: 40 * KM, calderaDepth: 3.2 * KM },
     },
+    features: [{ name: 'Olympus Mons', lat: 18.65, lon: -133.8, height: 21.9 * KM, note: 'Tallest volcano in the Solar System' }],
     stats: { type: 'Rocky planet', day: '24 h 40 min (a “sol”)', year: '687 Earth days', temp: '−153 °C to 20 °C', moons: 2 },
     facts: [
       'Olympus Mons is the tallest volcano in the solar system: 22 km high, 2.5× Everest.',

@@ -34,7 +34,7 @@ import { flipView } from '../ui/view.js';
 import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
-import { Devourer } from './devourer.js';
+import { Devourer, DEVOURER_DEF } from './devourer.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -57,6 +57,7 @@ const GROUND_LOOK = {
 // Optical "visibility" of the air near the ground (m) for aerial perspective.
 const clamp1 = (v) => Math.max(-1, Math.min(1, v));
 const REPAIR_TIME = 120; // s grounded after a crash landing
+const MARS_TIME_WARP = 3000; // on Mars' surface the universe clock races: a sol in ~30 s
 const repairClock = (s) => { const t = Math.ceil(Math.max(0, s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const VISIBILITY = { mars: 70e3, venus: 9e3, titan: 14e3, pluto: 400e3, triton: 500e3, proxb: 55e3 };
 
@@ -82,7 +83,7 @@ export class Game {
     this.engine = new Engine($('app'), { minFps: gfx.minFps, tiers: gfx.tiers === 'proxima' ? PROXIMA_TIERS : undefined, startTier: gfx.startTier });
     const eng = this.engine;
     this.clock = 0;
-    this.eph = new Ephemeris(this.sys.bodies);
+    this.eph = new Ephemeris([...this.sys.bodies, DEVOURER_DEF]); // the Devourer is a body too (absent until switched on)
     this.simTime = Date.now();
     this.eph.update(this.simTime);
     this.assets = new Assets(eng.renderer);
@@ -123,7 +124,7 @@ export class Game {
     this.rig = new CameraRig(eng.camera);
     this.input = new Input(eng.canvas);
     this.touch = IS_TOUCH ? new TouchControls(this.input) : null;
-    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), this.sys.nav);
+    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), ['devourer', ...this.sys.nav]);
     this.audio = new AudioEngine();
 
     this.workers = new TerrainWorkers();
@@ -414,6 +415,7 @@ export class Game {
   }
 
   selectTarget(body, user) {
+    if (body?.kind === 'devourer' && body.eaten) return; // not in this star system right now
     this.target = body;
     this.prevTargetDist = null;
     if (body?.def.terrain) this.prepareTerrain(body);
@@ -569,13 +571,14 @@ export class Game {
       // Near the black hole your clock runs slow: the universe races ahead.
       this.simTime += dt * 1000 * (this.dilation || 1);
       this.eph.update(this.simTime);
+      this.devourer.update(dt); // moves the Devourer's body before the ship flies
       if (this.state === 'play') this.playTime += dt;
       this.applyControls(dt);
       if (this.state === 'play') this.updateWarp(dt);
       this.step(dt);
       this.processEvents();
       this.updateSystems(dt);
-      this.devourer.update(dt);
+      this.devourer.updateDanger(dt);
     }
     this.updateCamera(dt);
     this.updateTerrain(dt);
@@ -1348,6 +1351,17 @@ export class Game {
       const beta = Math.min(0.9, this.ship.vel.length() / C_LIGHT);
       this.dilation *= 1 / Math.sqrt(1 - beta * beta);
     }
+    // Just for fun: on Mars' surface time races (days pass in seconds), easing in and out.
+    const onMars = this.currentBody().id === 'mars' && (this.onFoot || this.ship.mode === 'landed');
+    const warpTarget = onMars && this.state === 'play' ? MARS_TIME_WARP : 1;
+    const lw = Math.log(this.marsWarp || 1);
+    this.marsWarp = Math.exp(lw + (Math.log(warpTarget) - lw) * Math.min(1, dt * 1.2));
+    if (onMars && !this.marsWarpToast) {
+      this.marsWarpToast = true;
+      this.hud.toast('Mars time', `Time runs ${MARS_TIME_WARP.toLocaleString('en-US')}× faster on Mars: a whole sol passes in about 30 seconds. Watch Phobos race across the sky.`, 'discovery', 8);
+    }
+    if (!onMars) this.marsWarpToast = false;
+    this.dilation *= this.marsWarp;
 
     // Astronaut.
     if (this.onFoot) {
@@ -1439,6 +1453,17 @@ export class Game {
       landmarks.push({ name: s.lm.name.split(' · ')[0], world, distance: world.distanceTo(P) });
     }
     if (this.life) landmarks.push(...this.life.landmarks());
+    // Named features (Olympus Mons) on the world you are at or targeting, seen from orbit.
+    for (const fb of new Set([body, this.target])) {
+      for (const f of fb?.def.features || []) {
+        if (fb.eaten) continue;
+        const la = (f.lat * Math.PI) / 180, lo = (f.lon * Math.PI) / 180;
+        const dir = fb.toWorld(new THREE.Vector3(Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo)));
+        const world = fb.pos.clone().addScaledVector(dir, fb.radius + f.height);
+        if (dir.dot(_v.subVectors(this.camWorld, world)) < 0) continue; // on the far side
+        landmarks.push({ name: f.name, world, distance: world.distanceTo(P), range: 3e7 });
+      }
+    }
     // Prompt.
     let prompt = null;
     if (this.state === 'play') {
@@ -1484,7 +1509,7 @@ export class Game {
       fps: this.engine.fps,
       qualityName: `${this.engine.quality.name} · min ${this.engine.minFps}`,
     });
-    this.devourer.updateHud({ origin: this.camWorld, camQuat: this.rig.quat, camera: this.engine.camera });
+    this.devourer.updateHud();
     // Laser rifle energy.
     const lg = $('g-laser');
     if (lg) {

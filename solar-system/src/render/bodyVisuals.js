@@ -370,7 +370,7 @@ export class BodyPoints {
       this.positions[i * 3 + 1] = y * s;
       this.positions[i * 3 + 2] = z * s;
       const vis = visuals.get(b.id);
-      const px = vis ? vis.apparentPx || 0 : 0;
+      const px = vis ? vis.apparentPx || 0 : b.apparentPx || 0;
       // Apparent brightness ~ albedo · R² / (d_sun² · d²), mapped to a dot size.
       const dSun = b.pos.distanceTo(sun.pos);
       const albedo = b.def.visual?.albedo ?? 0.3;

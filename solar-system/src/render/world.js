@@ -25,7 +25,7 @@ export class WorldRenderer {
 
     this.visuals = new Map();
     for (const b of eph.bodies) {
-      if (b.id === 'sun' || b.kind === 'distantstar') continue;
+      if (b.id === 'sun' || b.kind === 'distantstar' || b.kind === 'devourer') continue; // the Devourer draws itself
       const v = b.kind === 'blackhole' ? new BlackHoleVisual(b) : new BodyVisual(b);
       this.visuals.set(b.id, v);
       scene.add(v.group);

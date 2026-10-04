@@ -113,8 +113,44 @@ export function createHeightfield(params) {
     const la = (T.bigCrater.lat * Math.PI) / 180, lo = (T.bigCrater.lon * Math.PI) / 180;
     big = { x: Math.cos(la) * Math.cos(lo), y: Math.sin(la), z: -Math.cos(la) * Math.sin(lo), r: T.bigCrater.radius, depth: T.bigCrater.depth };
   }
+  // A named shield volcano drawn in full detail over the global map (Olympus Mons).
+  let volc = null;
+  if (T.volcano) {
+    const v = T.volcano, la = (v.lat * Math.PI) / 180, lo = (v.lon * Math.PI) / 180;
+    volc = { ...v, x: Math.cos(la) * Math.cos(lo), y: Math.sin(la), z: -Math.cos(la) * Math.sin(lo) };
+  }
   const groove = T.grooves ? { spacing: 40 * Math.cbrt(R), amp: 1.4 * Math.cbrt(R) } : null;
   const maxH = estimateRange();
+
+  /**
+   * Shield volcano profile (m above the datum) at s = distance / base radius:
+   * gentle flanks rising to the summit, a scalloped cliff ring at the base,
+   * and nested calderas at the top. Beyond the cliff it blends into the map.
+   */
+  function volcanoAt(x, y, z, h) {
+    const v = volc;
+    const d = Math.acos(Math.max(-1, Math.min(1, x * v.x + y * v.y + z * v.z))) * R;
+    let s = d / v.radius;
+    if (s > 1.4) return h;
+    const px = x * R, py = y * R, pz = z * R;
+    // Scalloped outline: the cliff wanders in and out by ~15 km.
+    s += 0.05 * vnoise(px / 60000, py / 60000, pz / 60000, seed ^ 0x0171) + 0.02 * vnoise(px / 15000, py / 15000, pz / 15000, seed ^ 0x0172);
+    const cal = v.caldera / v.radius;
+    let p;
+    if (s >= 0.975) p = v.plains;
+    else if (s >= 0.93) p = v.plains + (v.cliffTop - v.plains) * smoothstep(0.975, 0.93, s); // the escarpment
+    else {
+      const t = Math.max(0, (s - cal) / (0.93 - cal));
+      p = v.cliffTop + (v.summit - v.cliffTop) * Math.pow(1 - t, 1.25);   // the shield's flanks
+    }
+    if (s < cal * 1.1) {
+      // Summit calderas: a broad pit and a deeper one inside it.
+      p -= v.calderaDepth * 0.6 * smoothstep(cal * 1.1, cal * 0.95, s);
+      p -= v.calderaDepth * 0.4 * smoothstep(cal * 0.55, cal * 0.45, s);
+    }
+    const w = 1 - smoothstep(1.0, 1.4, s);
+    return h + (p - h) * w;
+  }
 
   /** Global elevation map, bicubic. */
   function heightmapAt(x, y, z) {
@@ -231,6 +267,7 @@ export function createHeightfield(params) {
     const px = x * R, py = y * R, pz = z * R;
     let h = 0;
     if (hm) h += heightmapAt(x, y, z);
+    if (volc) h = volcanoAt(x, y, z, h);
     const minFeature = spacing * 2.5;
     if (T.noise) {
       let n = fbm(px, py, pz, T.noise.amp, T.noise.scale, minFeature, seed ^ 0x1234);
@@ -295,6 +332,7 @@ export function createHeightfield(params) {
     if (big) m += big.depth;
     if (T.dunes) m += T.dunes.amp;
     if (T.calderas) m += 4000;
+    if (T.volcano) m = Math.max(m, T.volcano.summit + 2000);
     return m;
   }
 

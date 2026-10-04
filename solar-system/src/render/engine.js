@@ -2,19 +2,17 @@
 // engine.js — the WebGL renderer, a fixed 1080p render resolution, and the
 // quality governor that keeps the frame rate at or above 30 fps.
 //
-// The governor never touches resolution (always 1080p, 720p on phones) or terrain detail.
+// The governor never touches resolution (always 1080p) or terrain detail.
 // It only trades shadow quality, atmosphere ray-march samples, cloud and
 // particle effects, in that order.
 // =============================================================================
 import * as THREE from 'three';
 import { updateView } from '../ui/view.js';
 
-// Fixed 1080p; phones get a fixed 720p, which is still sharp on a 6-inch
-// screen and leaves their GPUs room for 30 fps. (`?rh=540` overrides it for
+// Fixed 1080p on every device, phones included. (`?rh=540` overrides it for
 // automated tests on software GPUs.)
 const RH_PARAM = Number(new URLSearchParams(globalThis.location?.search || '').get('rh'));
-const PHONE = !!globalThis.matchMedia?.('(pointer: coarse)').matches && Math.min(globalThis.screen?.width || 9999, globalThis.screen?.height || 9999) < 600;
-export const RENDER_HEIGHT = RH_PARAM >= 240 && RH_PARAM <= 2160 ? RH_PARAM : PHONE ? 720 : 1080;
+export const RENDER_HEIGHT = RH_PARAM >= 240 && RH_PARAM <= 2160 ? RH_PARAM : 1080;
 
 // Quality tiers, best first. The governor moves down one tier at a time.
 // `flora` scales plant density where there are plants (Proxima b).

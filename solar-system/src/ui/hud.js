@@ -64,7 +64,7 @@ export class Hud {
   buildMarkers() {
     for (const b of this.eph.bodies) {
       const el = document.createElement('div');
-      el.className = `marker ${b.kind === 'moon' ? 'moon' : ''}`;
+      el.className = `marker ${b.kind === 'moon' ? 'moon' : b.kind === 'devourer' ? 'devourer' : ''}`;
       el.innerHTML = '<span class="box"></span><span class="tag"></span>';
       el.style.display = 'none';
       this.markersEl.appendChild(el);
@@ -94,11 +94,12 @@ export class Hud {
     // ---- Compass rows ----
     for (const row of this.rows.values()) {
       const b = row.body;
-      const visibleRow = !row.isMoon || b.parent === system || b.parent === targetSystem;
+      const visibleRow = b.kind === 'devourer' ? !!b.devourerOn : !row.isMoon || b.parent === system || b.parent === targetSystem;
       row.li.hidden = !visibleRow;
       row.li.classList.toggle('selected', ctx.target === b);
       row.li.classList.toggle('current', ctx.current === b);
-      row.li.classList.toggle('eaten', !!b.eaten);
+      row.li.classList.toggle('eaten', !!b.eaten && b.kind !== 'devourer');
+      row.li.classList.toggle('devourer', b.kind === 'devourer');
       if (!visibleRow) continue;
       camRel.subVectors(b.pos, ctx.playerPos);
       const dist = camRel.length() - b.radius;
@@ -108,7 +109,7 @@ export class Hud {
       row.arrow.style.transform = `translate(-50%, -60%) rotate(${ang}rad)`;
       row.dir.classList.toggle('behind', _v.z > 0);
       row.dir.classList.toggle('ahead', offNose < 0.08);
-      if (textTick) row.dist.textContent = b.eaten ? 'eaten' : formatDistance(Math.max(dist, 0));
+      if (textTick) row.dist.textContent = b.eaten ? (b.kind === 'devourer' ? 'elsewhere' : 'eaten') : formatDistance(Math.max(dist, 0));
     }
 
     // ---- 3D markers ----
@@ -173,7 +174,7 @@ export class Hud {
       if (!lm) { el.style.display = 'none'; return; }
       const rel = lm.world.clone().sub(ctx.origin);
       this.toCamera(rel, ctx.camQuat, _v);
-      if (_v.z >= 0 || lm.distance > 600e3) { el.style.display = 'none'; return; }
+      if (_v.z >= 0 || lm.distance > (lm.range || 600e3)) { el.style.display = 'none'; return; }
       el.style.display = '';
       el.style.transform = `translate(${(W / 2 + (_v.x / -_v.z) * f).toFixed(1)}px, ${(H / 2 - (_v.y / -_v.z) * f).toFixed(1)}px)`;
       el.querySelector('.tag').innerHTML = `${lm.name}<small>${formatDistance(lm.distance)}</small>`;

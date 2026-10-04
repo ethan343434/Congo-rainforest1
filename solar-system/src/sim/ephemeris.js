@@ -200,6 +200,8 @@ export class Ephemeris {
       case 'kepler':
         this.keplerPosition(b, ms, b.pos).add(b.parent.pos);
         break;
+      case 'external':
+        break; // moved by game code (the Devourer), which also sets its velocity
       default:
         throw new Error(`Unknown ephemeris type ${e.type}`);
     }
@@ -285,6 +287,7 @@ export class Ephemeris {
       this.computeRotation(b, t2, ms + dt * 1000);
     }
     this.bodies.forEach((b, i) => {
+      if (b.def.ephem.type === 'external') return;
       b.vel.subVectors(b.pos, pos0[i]).divideScalar(dt);
       // ω from the change in orientation: q1 · q0⁻¹ = rotation over dt.
       const dq = b.quat.clone().multiply(quat0[i].clone().invert());

@@ -216,7 +216,7 @@ export class ShipSim {
     const p = new THREE.Vector3(), vb = new THREE.Vector3();
     for (const b of this.eph.bodies) {
       if (b.eaten) continue;
-      if (b.def.terrain === undefined) continue;
+      if (b.def.terrain === undefined && b.kind !== 'devourer') continue;
       p.copy(this.rel).add(body.pos).sub(b.pos);           // relative to b
       if (p.length() - b.radius > step * 1.5) continue;     // out of reach this step
       vb.copy(this.vel).add(body.vel).sub(b.vel).multiplyScalar(dt);
@@ -314,6 +314,7 @@ export class ShipSim {
   arrivalDistance(body) {
     if (body.id === 'sun') return 0.3 * AU;
     if (body.kind === 'blackhole') return body.radius * 14; // outside the accretion disk
+    if (body.kind === 'devourer') return body.radius * 5;   // in front of its face
     if (body.atmosphere?.gasGiant) return body.radius * 3.4;
     if (body.radius < 50e3) return body.maxRadius * 6 + 20e3;
     const barrier = body.def.barrier ? body.radius + body.def.barrier.altitude : 0;
