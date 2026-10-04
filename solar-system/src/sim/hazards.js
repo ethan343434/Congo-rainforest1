@@ -146,7 +146,10 @@ export class ShipSystems {
 }
 
 export class SuitSystems {
-  constructor() { this.reset(); }
+  constructor() {
+    this.infiniteShield = false; // test switch: hazard protection never drains
+    this.reset();
+  }
 
   reset() {
     this.health = 100;
@@ -202,7 +205,11 @@ export class SuitSystems {
     const dose = env.radiation * 0.5; // the suit blocks about half
     if (dose > 0.0008) { drain += Math.min(40, dose * 18); reasons.push(`radiation ${formatDose(dose)}`); }
     if (env.pressure > 4e5) { drain += (env.pressure / 4e5) * 3; reasons.push(`pressure ${(env.pressure / 1e5).toFixed(0)} bar`); }
-    if (drain > 0) {
+    if (drain > 0 && this.infiniteShield) {
+      // Test switch: the shield holds against anything a world can throw at you.
+      this.hazard = 100;
+      w.push({ level: 'caution', text: `Hazard: ${reasons.join(', ')} · shield infinite` });
+    } else if (drain > 0) {
       this.hazard = Math.max(0, this.hazard - drain * dt);
       if (this.hazard <= 0) {
         this.harm(dt * Math.min(30, drain * 0.9), `Hazard protection failed (${reasons[0]}).`, now);

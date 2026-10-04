@@ -80,5 +80,13 @@ check('Io’s radiation kills within a few minutes', io < 300, `${io.toFixed(0)}
   check('…and with it on, the same heating burns the ship up', hot.destroyed, hot.cause);
 }
 
+// Infinite suit shield: Venus' surface and Io's radiation can't hurt you; oxygen still runs down.
+{
+  const suit = new SuitSystems();
+  suit.infiniteShield = true;
+  for (let i = 0; i < 3000; i++) suit.update({ dt: 0.1, now: i * 0.1, temp: 737, pressure: 92e5, radiation: 1.5, breathable: false });
+  check('With the infinite suit shield, Venus and Io radiation do no harm for 5 minutes', !suit.dead && suit.health === 100 && suit.hazard === 100, `health ${suit.health.toFixed(0)}%, shield ${suit.hazard.toFixed(0)}%, oxygen ${suit.lifeSupport.toFixed(0)}%`);
+}
+
 console.log(failed ? `\n${failed} hazard test(s) failed.` : '\nAll hazard tests passed.');
 process.exit(failed ? 1 : 0);

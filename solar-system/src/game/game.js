@@ -241,6 +241,18 @@ export class Game {
       try { localStorage.setItem('solv-heat-damage', this.systems.heatImmune ? 'off' : 'on'); } catch (e) { /* not saved */ }
       showHeat();
     });
+    // Test switch: the spacesuit's hazard shield (infinite by default for now).
+    let shield = true;
+    try { shield = localStorage.getItem('solv-suit-shield') !== 'normal'; } catch (e) { /* default */ }
+    this.suit.infiniteShield = shield;
+    const sb = $('shield-btn');
+    const showShield = () => { sb.textContent = `Suit shield: ${this.suit.infiniteShield ? 'infinite' : 'normal'}`; };
+    showShield();
+    sb.addEventListener('click', () => {
+      this.suit.infiniteShield = !this.suit.infiniteShield;
+      try { localStorage.setItem('solv-suit-shield', this.suit.infiniteShield ? 'infinite' : 'normal'); } catch (e) { /* not saved */ }
+      showShield();
+    });
     // Landscape lock: turn the game the other way round on the phone.
     $('flip-btn').addEventListener('click', () => flipView());
     // Reset from the pause menu asks for a second click.
