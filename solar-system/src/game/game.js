@@ -35,6 +35,7 @@ import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
 import { Devourer, DEVOURER_DEF } from './devourer.js';
+import { SunDeath } from './sunDeath.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -154,6 +155,7 @@ export class Game {
     this.wasLocked = false;
     this.lastTime = performance.now();
     this.devourer = new Devourer(this);
+    this.sunDeath = new SunDeath(this);
     this.bindUI();
     this.frame = this.frame.bind(this);
     requestAnimationFrame(this.frame);
@@ -265,6 +267,12 @@ export class Game {
       showDevourer();
       if (this.devourer.on) this.hud.toast('The Devourer awakens', 'It will eat every world, starting with Mercury. Don’t be standing on one when it does.', 'warn', 8);
     });
+    // The Sun's death: an optional end of the Solar System.
+    const sd = $('sundeath-btn');
+    const showSunDeath = () => { sd.textContent = `Sun’s death: ${this.sunDeath.on ? this.sunDeath.statusText() : 'off'}`; };
+    showSunDeath();
+    sd.addEventListener('click', () => { this.sunDeath.setOn(!this.sunDeath.on); showSunDeath(); });
+    this.showSunDeath = showSunDeath;
     // Landscape lock: turn the game the other way round on the phone.
     $('flip-btn').addEventListener('click', () => flipView());
     // Reset from the pause menu asks for a second click.
@@ -308,6 +316,7 @@ export class Game {
     if (this.state !== 'play') return;
     this.state = 'paused';
     $('pause').classList.add('visible');
+    this.showSunDeath?.();
     this.hud.show(false);
     $('quality-label').textContent = `Rendering at ${RENDER_HEIGHT}p · quality ${this.engine.quality.name} · ${this.engine.fps.toFixed(0)} fps (keeps at least ${this.engine.minFps})`;
     this.input.releaseLock();
@@ -348,6 +357,7 @@ export class Game {
     if (this.echoHistory) this.echoHistory.length = 0;
     if (this.life) { this.life.dispose(); this.life = null; }
     this.devourer.reset();
+    this.sunDeath.reset();
     this.lightsOn = false;
     this.respawn();
     this.state = 'play';
@@ -572,6 +582,7 @@ export class Game {
       this.simTime += dt * 1000 * (this.dilation || 1);
       this.eph.update(this.simTime);
       this.devourer.update(dt); // moves the Devourer's body before the ship flies
+      this.sunDeath.update(dt); // the Sun's death: swelling, collapse, Pluto's fall
       if (this.state === 'play') this.playTime += dt;
       this.applyControls(dt);
       if (this.state === 'play') this.updateWarp(dt);

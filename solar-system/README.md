@@ -23,6 +23,11 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   clock goes back to now and your progress is cleared. The pause menu has Reset too.
   Each body's scanner entry has a survivability rating: Lethal, Hostile, Suit required or
   Habitable.
+- **The Sun's death (optional).** Switch it on in the pause menu: the Sun swells into a red
+  giant and swallows every world out to Neptune in five minutes (only Pluto and Charon are
+  far enough out), collapses into a black hole, and drags Pluto in over three minutes. Ride
+  Pluto through to Proxima, where it strikes Alpha Centauri B and the two merge into a new
+  star, Nova Plutonis.
 - **Mars.** Olympus Mons stands at its real place in full detail: a 600 km shield 21.9 km
   high, a 6–8 km cliff around its base and calderas 3 km deep, labelled from orbit. On the
   surface time runs 3,000× faster, so a whole sol passes in about 30 seconds.
@@ -153,6 +158,7 @@ src/game/input.js           keyboard + mouse virtual stick
 src/game/touch.js           on-screen joystick and buttons for touch screens
 src/ui/view.js              landscape lock: turns the page on phones held in portrait
 src/game/devourer.js        the optional world-eating giant: its plan, model, stream and hunt
+src/game/sunDeath.js        the optional red giant, collapse and Pluto's fall to Alpha Centauri B
 src/data/bodies.js          33 bodies: physical data, atmospheres, terrain, facts, survivability
 src/data/proxima.js         the Proxima Centauri system; src/data/systems.js picks the system
 src/game/proximaLife.js     Proxima b's creatures, plants, supply crates and laser rifle

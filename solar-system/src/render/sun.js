@@ -169,6 +169,11 @@ export class SunVisual {
    */
   update(time, camRel, visibility, exposure) {
     TINT.value.set(STAR.disk[0], STAR.disk[1], STAR.disk[2]);
+    // The Sun can swell into a red giant and collapse (the "Sun's death" event).
+    this.group.visible = !this.body.collapsed;
+    if (this.body.collapsed) return;
+    this.surface.scale.setScalar(this.body.radius);
+    this.corona.scale.setScalar(this.body.radius * 8);
     this.group.position.copy(camRel);
     this.surfaceMat.uniforms.uTime.value = time;
     this.surfaceMat.uniforms.uRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(this.body.quat));
