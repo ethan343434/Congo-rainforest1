@@ -319,6 +319,7 @@ export class Ephemeris {
     while (changed) {
       changed = false;
       for (const c of best.children) {
+        if (c.eaten) continue; // devoured: no gravity left
         if (c.pos.distanceTo(worldPos) < c.soi) {
           best = c;
           changed = true;

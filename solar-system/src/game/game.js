@@ -34,6 +34,7 @@ import { flipView } from '../ui/view.js';
 import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
+import { Devourer } from './devourer.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -151,6 +152,7 @@ export class Game {
     this.env = { temp: null, pressure: 0, radiation: 0, solarFlux: 0 };
     this.wasLocked = false;
     this.lastTime = performance.now();
+    this.devourer = new Devourer(this);
     this.bindUI();
     this.frame = this.frame.bind(this);
     requestAnimationFrame(this.frame);
@@ -253,6 +255,15 @@ export class Game {
       try { localStorage.setItem('solv-suit-shield', this.suit.infiniteShield ? 'infinite' : 'normal'); } catch (e) { /* not saved */ }
       showShield();
     });
+    // The Devourer: an optional giant that eats every world, then hunts you.
+    const db = $('devourer-btn');
+    const showDevourer = () => { db.textContent = `Devourer: ${this.devourer.on ? 'on' : 'off'}`; };
+    showDevourer();
+    db.addEventListener('click', () => {
+      this.devourer.setOn(!this.devourer.on);
+      showDevourer();
+      if (this.devourer.on) this.hud.toast('The Devourer awakens', 'It will eat every world, starting with Mercury. Don’t be standing on one when it does.', 'warn', 8);
+    });
     // Landscape lock: turn the game the other way round on the phone.
     $('flip-btn').addEventListener('click', () => flipView());
     // Reset from the pause menu asks for a second click.
@@ -335,6 +346,7 @@ export class Game {
     this.visited.clear();
     if (this.echoHistory) this.echoHistory.length = 0;
     if (this.life) { this.life.dispose(); this.life = null; }
+    this.devourer.reset();
     this.lightsOn = false;
     this.respawn();
     this.state = 'play';
@@ -391,6 +403,7 @@ export class Game {
     this.repair = null;
     this.selectTarget(moon, false);
     this.lastBody = earth;
+    this.devourer?.onRespawn();
   }
 
   // ===========================================================================
@@ -425,6 +438,7 @@ export class Game {
   // Terrain
   // ===========================================================================
   terrainFor(body) {
+    if (body.eaten) return null;
     const t = this.terrains.get(body.id);
     return t && !t.disposed ? t : null;
   }
@@ -561,6 +575,7 @@ export class Game {
       this.step(dt);
       this.processEvents();
       this.updateSystems(dt);
+      this.devourer.update(dt);
     }
     this.updateCamera(dt);
     this.updateTerrain(dt);
@@ -1369,6 +1384,7 @@ export class Game {
       amount: eng.quality.particles,
     });
     this.explosion.update(dt, origin);
+    this.devourer.render(origin, this.clock);
   }
 
   // ---- HUD -------------------------------------------------------------------------------------
@@ -1468,6 +1484,7 @@ export class Game {
       fps: this.engine.fps,
       qualityName: `${this.engine.quality.name} · min ${this.engine.minFps}`,
     });
+    this.devourer.updateHud({ origin: this.camWorld, camQuat: this.rig.quat, camera: this.engine.camera });
     // Laser rifle energy.
     const lg = $('g-laser');
     if (lg) {

@@ -284,6 +284,14 @@ code { font-family: var(--font-data); font-size: 0.9em; color: var(--ice); }
 .marker.target .box { border: 2px solid var(--amber); transform: rotate(45deg); }
 .marker.target .tag { color: var(--amber); }
 .marker.landmark .box { border-radius: 50%; border-color: var(--ok); }
+.marker.devourer .box { border: 2px solid var(--danger); border-radius: 50%; width: 22px; height: 22px; left: -11px; top: -11px; }
+.marker.devourer .tag { color: var(--danger); letter-spacing: 0.14em; }
+#nav-list li.devourer { cursor: default; background: rgba(255, 90, 76, 0.1); box-shadow: inset 2px 0 0 var(--danger); }
+#nav-list li.devourer .dir { border: none; color: var(--danger); font-size: 14px; display: grid; place-items: center; }
+#nav-list li.devourer .name { color: var(--danger); }
+#nav-list li.devourer .dist { color: #ffb3a8; white-space: normal; text-align: right; }
+#nav-list li.eaten .name { text-decoration: line-through; color: var(--muted); }
+#nav-list li.eaten .dist { color: var(--danger); }
 .marker.landmark .tag { color: var(--ok); }
 
 /* ---- Overlay panels ------------------------------------------------------------ */

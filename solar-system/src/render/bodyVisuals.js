@@ -218,7 +218,8 @@ export class BodyVisual {
     const apparentPx = (b.maxRadius / Math.max(dist, 1)) * ctx.pixelScale;
     const ringPx = this.rings ? (b.def.rings.outer / dist) * ctx.pixelScale : 0;
     this.apparentPx = apparentPx;
-    const visible = apparentPx > 0.35 || ringPx > 0.6;
+    const eat = b.eaten ? 0 : b.eatScale ?? 1; // being eaten by the Devourer: shrinks away
+    const visible = eat > 0.002 && (apparentPx * eat > 0.35 || ringPx * eat > 0.6);
     this.group.visible = visible;
     if (!visible) return apparentPx;
 
@@ -287,7 +288,12 @@ export class BodyVisual {
       this.barrier.visible = near > 0.01 || this.barrierHit > 0;
     }
     this.surface.visible = !this.terrainActive;
-    return apparentPx;
+    this.group.scale.setScalar(eat);
+    if (eat < 1) {
+      for (const part of [this.atmo, this.clouds, this.rings, this.barrier]) if (part) part.visible = false;
+      this.surface.visible = true;
+    }
+    return apparentPx * eat;
   }
 
   /** Flash the barrier where the ship struck it (local direction). */
@@ -355,6 +361,7 @@ export class BodyPoints {
 
   update(origin, sun, visuals, pixelRatio) {
     this.bodies.forEach((b, i) => {
+      if (b.eaten) { this.sizes[i] = 0; return; }
       const x = b.pos.x - origin.x, y = b.pos.y - origin.y, z = b.pos.z - origin.z;
       // Keep the point inside float range while preserving direction.
       const d = Math.hypot(x, y, z);

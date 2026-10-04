@@ -98,6 +98,7 @@ export class Hud {
       row.li.hidden = !visibleRow;
       row.li.classList.toggle('selected', ctx.target === b);
       row.li.classList.toggle('current', ctx.current === b);
+      row.li.classList.toggle('eaten', !!b.eaten);
       if (!visibleRow) continue;
       camRel.subVectors(b.pos, ctx.playerPos);
       const dist = camRel.length() - b.radius;
@@ -107,13 +108,13 @@ export class Hud {
       row.arrow.style.transform = `translate(-50%, -60%) rotate(${ang}rad)`;
       row.dir.classList.toggle('behind', _v.z > 0);
       row.dir.classList.toggle('ahead', offNose < 0.08);
-      if (textTick) row.dist.textContent = formatDistance(Math.max(dist, 0));
+      if (textTick) row.dist.textContent = b.eaten ? 'eaten' : formatDistance(Math.max(dist, 0));
     }
 
     // ---- 3D markers ----
     for (const m of this.markers.values()) {
       const b = m.body;
-      const show = b === ctx.target || b === ctx.current || b.kind !== 'moon' || b.parent === system;
+      const show = !b.eaten && (b === ctx.target || b === ctx.current || b.kind !== 'moon' || b.parent === system);
       if (!show || (ctx.onFoot && b === ctx.current)) { m.el.style.display = 'none'; continue; }
       camRel.subVectors(b.pos, ctx.origin);
       this.toCamera(camRel, ctx.camQuat, _v);

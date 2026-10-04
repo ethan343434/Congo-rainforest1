@@ -113,7 +113,7 @@ export class WorldRenderer {
     const aSun = sun.radius / dSun;
     let vis = 1;
     for (const b of this.eph.bodies) {
-      if (b === sun || b === exclude) continue;
+      if (b === sun || b === exclude || b.eaten) continue;
       const to = b.pos.clone().sub(origin);
       const d = to.length();
       if (d > dSun) continue;

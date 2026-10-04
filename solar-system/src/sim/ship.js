@@ -158,6 +158,7 @@ export class ShipSim {
   nearestSurface(worldPos) {
     let best = null, bestD = Infinity;
     for (const b of this.eph.bodies) {
+      if (b.eaten) continue;
       const d = this.clearance(b, worldPos);
       if (d < bestD) { bestD = d; best = b; }
     }
@@ -175,6 +176,7 @@ export class ShipSim {
   cruiseEnvelope(worldPos, info) {
     const env = { clear: Infinity, limit: Infinity, body: null };
     for (const b of this.eph.bodies) {
+      if (b.eaten) continue;
       if (b.kind === 'blackhole') continue;
       const dist = b.pos.distanceTo(worldPos);
       const solid = b.def.terrain !== undefined;
@@ -213,6 +215,7 @@ export class ShipSim {
     let hit = null, first = 1;
     const p = new THREE.Vector3(), vb = new THREE.Vector3();
     for (const b of this.eph.bodies) {
+      if (b.eaten) continue;
       if (b.def.terrain === undefined) continue;
       p.copy(this.rel).add(body.pos).sub(b.pos);           // relative to b
       if (p.length() - b.radius > step * 1.5) continue;     // out of reach this step
@@ -362,6 +365,7 @@ export class ShipSim {
     if (len > 1) {
       seg.divideScalar(len);
       for (const b of this.eph.bodies) {
+      if (b.eaten) continue;
         if (b === T || (b === T.parent && T.kind === 'moon')) continue;
         const safe = b.id === 'sun' ? 0.25 * AU : b.maxRadius + this.interdictionAltitude(b) * 2.5;
         const along = b.pos.clone().sub(ship).dot(seg);
