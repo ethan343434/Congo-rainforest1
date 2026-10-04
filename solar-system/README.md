@@ -37,6 +37,19 @@ or major moon, land on solid worlds and walk around in a spacesuit.
   or next to a world while it is eaten and you go with it. When every world is gone it dives
   into the black hole, eats Proxima's planets, then hunts you; the pulse drive can outrun it.
   Its progress is saved in the browser; Reset game brings every world back.
+- **World-killer beam.** Press `B` (or tap BEAM) and a beam drills into the target's core
+  (or the nearest world's): it melts into magma in 4 seconds and explodes 10 seconds
+  later. Stay more than three radii away. The Sun, the black hole and the Devourer are spared.
+- **Black hole and white hole guns.** `N` opens a black hole beside the target (or the
+  nearest world): the world and its moons spiral in and fall through to Alpha Centauri,
+  where they come out in parking orbits around Proxima (go through the big black hole to
+  see them). Be within 2.5 radii and you go with it. `U` opens a white hole in front of
+  the ship and throws a swallowed world (`Y` picks which) at your target, in about
+  8 seconds whatever the distance. Each world is blown apart if the impact energy
+  beats its gravitational binding energy: the Moon always wrecks Earth, but Jupiter
+  shrugs off a Moon thrown from close by (a throw from farther away is faster and hits
+  harder). Stars, the black hole and the Devourer swallow whatever hits them.
+  Destroyed and swallowed worlds are saved in the browser until Reset game.
 - **Warp drive.** Press `K` and you jump straight to the selected target. You arrive on
   its sunlit side, facing it.
 - **A black hole beyond Pluto.** This one is fictional and marked as such in the
@@ -158,6 +171,8 @@ src/game/input.js           keyboard + mouse virtual stick
 src/game/touch.js           on-screen joystick and buttons for touch screens
 src/ui/view.js              landscape lock: turns the page on phones held in portrait
 src/game/devourer.js        the optional world-eating giant: its plan, model, stream and hunt
+src/game/planetBuster.js    the world-killer beam, and the explosions it shares with crashes
+src/game/holeGuns.js        the black hole and white hole guns: swallowing, parking, throwing, crashes
 src/game/sunDeath.js        the optional red giant, collapse and Pluto's fall to Alpha Centauri B
 src/data/bodies.js          33 bodies: physical data, atmospheres, terrain, facts, survivability
 src/data/proxima.js         the Proxima Centauri system; src/data/systems.js picks the system

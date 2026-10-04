@@ -322,7 +322,7 @@ export class Ephemeris {
     while (changed) {
       changed = false;
       for (const c of best.children) {
-        if (c.eaten) continue; // devoured: no gravity left
+        if (c.eaten || c.loose) continue; // devoured, or flung by the white hole gun: no gravity
         if (c.pos.distanceTo(worldPos) < c.soi) {
           best = c;
           changed = true;

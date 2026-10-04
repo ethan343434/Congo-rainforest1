@@ -37,6 +37,7 @@ import { ProximaLife } from './proximaLife.js';
 import { Devourer, DEVOURER_DEF } from './devourer.js';
 import { SunDeath } from './sunDeath.js';
 import { PlanetBuster } from './planetBuster.js';
+import { HoleGuns, capturedImports } from './holeGuns.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -85,7 +86,9 @@ export class Game {
     this.engine = new Engine($('app'), { minFps: gfx.minFps, tiers: gfx.tiers === 'proxima' ? PROXIMA_TIERS : undefined, startTier: gfx.startTier });
     const eng = this.engine;
     this.clock = 0;
-    this.eph = new Ephemeris([...this.sys.bodies, DEVOURER_DEF]); // the Devourer is a body too (absent until switched on)
+    // Worlds the black hole gun took from the other star system come too (parked at Proxima, hidden in the hole here).
+    this.imports = capturedImports(this.sys);
+    this.eph = new Ephemeris([...this.sys.bodies, ...this.imports.defs, DEVOURER_DEF]); // the Devourer is a body too (absent until switched on)
     this.simTime = Date.now();
     this.eph.update(this.simTime);
     this.assets = new Assets(eng.renderer);
@@ -126,7 +129,7 @@ export class Game {
     this.rig = new CameraRig(eng.camera);
     this.input = new Input(eng.canvas);
     this.touch = IS_TOUCH ? new TouchControls(this.input) : null;
-    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), ['devourer', ...this.sys.nav]);
+    this.hud = new Hud(this.eph, (b) => this.selectTarget(b, true), ['devourer', ...this.sys.nav, ...this.imports.nav]);
     this.audio = new AudioEngine();
 
     this.workers = new TerrainWorkers();
@@ -158,6 +161,7 @@ export class Game {
     this.devourer = new Devourer(this);
     this.sunDeath = new SunDeath(this);
     this.buster = new PlanetBuster(this);
+    this.holes = new HoleGuns(this);
     this.bindUI();
     this.frame = this.frame.bind(this);
     requestAnimationFrame(this.frame);
@@ -361,6 +365,7 @@ export class Game {
     this.devourer.reset();
     this.sunDeath.reset();
     this.buster.reset();
+    this.holes.reset();
     this.lightsOn = false;
     this.respawn();
     this.state = 'play';
@@ -586,6 +591,7 @@ export class Game {
       this.eph.update(this.simTime);
       this.devourer.update(dt); // moves the Devourer's body before the ship flies
       this.sunDeath.update(dt); // the Sun's death: swelling, collapse, Pluto's fall
+      this.holes.update(dt); // worlds falling into the black hole gun's hole, or thrown out of the white hole
       if (this.state === 'play') this.playTime += dt;
       this.applyControls(dt);
       if (this.state === 'play') this.updateWarp(dt);
@@ -595,6 +601,7 @@ export class Game {
       this.devourer.updateDanger(dt);
       this.sunDeath.updateDanger();
       this.buster.update(dt); // the world-killer beam
+      this.holes.updateDanger();
     }
     this.updateCamera(dt);
     this.updateTerrain(dt);
@@ -656,6 +663,9 @@ export class Game {
         case 'KeyM': this.audio.setMuted(!this.audio.muted); this.hud.toast('Sound', this.audio.muted ? 'Muted' : 'On', '', 2); break;
         case 'KeyF': this.toggleLights(); break;
         case 'KeyB': this.buster.fire(); break;
+        case 'KeyN': this.holes.fireBlack(); break;
+        case 'KeyU': this.holes.fireWhite(); break;
+        case 'KeyY': this.holes.cycle(); break;
         case 'KeyO': this.showFps = !this.showFps; break;
         case 'Tab':
           this.keysHidden = !this.keysHidden;
@@ -1417,6 +1427,7 @@ export class Game {
     this.explosion.update(dt, origin);
     this.devourer.render(origin, this.clock);
     this.buster.render(origin, this.clock, dt);
+    this.holes.render(origin, this.clock, dt);
   }
 
   // ---- HUD -------------------------------------------------------------------------------------
@@ -1570,6 +1581,7 @@ export class Game {
         pulse: ship.mode === 'pulse',
         armed: !!this.life?.weapon.has,
         lowOverGround: ship.canAutoLand(),
+        held: this.holes.heldCount(),
         useLabel: this.onFoot ? (near ? 'OPEN' : 'BOARD') : 'EXIT',
       });
     }
@@ -1608,6 +1620,8 @@ export class Game {
     const flying = ship.mode === 'flight' || ship.mode === 'pulse';
     const landed = ship.mode === 'landed';
     const hasTarget = !!this.target;
+    const loaded = this.holes.loaded();
+    const held = this.holes.heldCount();
     const nearShip = foot && this.walker.distanceToShip() < 13;
     const lowSlow = ship.canAutoLand();
     // [keys, what it does, available now?, highlighted?]
@@ -1635,6 +1649,9 @@ export class Game {
       [['T', '0–9'], 'Choose a target', true],
       [['K'], hasTarget ? `Warp to ${this.target.name}` : 'Warp drive (needs a target)', hasTarget && !landed, false],
       [['B'], hasTarget ? `World-killer beam at ${this.target.name}` : 'World-killer beam (nearest world)', true, false],
+      [['N'], hasTarget ? `Black hole gun at ${this.target.name}` : 'Black hole gun (nearest world)', true, false],
+      [['U'], loaded ? `White hole gun: throw ${loaded.name}${hasTarget ? ` at ${this.target.name}` : ''}` : 'White hole gun (hole is empty)', !!loaded, false],
+      ...(held > 1 ? [[['Y'], `Next world in the hole (${held})`, true, false]] : []),
       [['G'], ship.autopilot ? 'Cancel autopilot' : 'Autopilot to the target', hasTarget && !landed],
       [['J'], ship.mode === 'pulse' ? 'Leave pulse drive' : 'Pulse drive (faster than light)', flying || landed],
       [['L'], 'Auto-land', !!lowSlow, !!lowSlow],

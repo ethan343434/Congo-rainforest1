@@ -33,6 +33,9 @@ const CHIPS = [
   ['auto', 'AUTOPILOT', 'KeyG', false, (c) => !c.foot && (c.flying || c.landed)],
   ['warp', 'WARP', 'KeyK', false, (c) => !c.foot && c.flying],
   ['beam', 'BEAM', 'KeyB', false, (c) => !c.foot],
+  ['blackhole', 'BLACK HOLE', 'KeyN', false, (c) => !c.foot],
+  ['whitehole', 'WHITE HOLE', 'KeyU', false, (c) => !c.foot && c.held > 0],
+  ['nexthole', 'NEXT WORLD', 'KeyY', false, (c) => !c.foot && c.held > 1],
   ['pulse', 'PULSE', 'KeyJ', false, (c) => !c.foot && (c.flying || c.landed)],
   ['target', 'TARGET', 'KeyT', false, (c) => !c.foot],
   ['assist', 'ASSIST', 'KeyZ', false, (c) => !c.foot && c.flying],
@@ -196,7 +199,7 @@ export class TouchControls {
     }
   }
 
-  /** ctx: { playing, foot, flying, landed, pulse, armed, lowOverGround, useLabel } */
+  /** ctx: { playing, foot, flying, landed, pulse, armed, lowOverGround, held, useLabel } */
   update(ctx) {
     this.setVisible(ctx.playing);
     if (!ctx.playing) return;

@@ -109,7 +109,7 @@ export class Hud {
       row.arrow.style.transform = `translate(-50%, -60%) rotate(${ang}rad)`;
       row.dir.classList.toggle('behind', _v.z > 0);
       row.dir.classList.toggle('ahead', offNose < 0.08);
-      if (textTick) row.dist.textContent = b.eaten ? (b.kind === 'devourer' ? 'elsewhere' : 'eaten') : formatDistance(Math.max(dist, 0));
+      if (textTick) row.dist.textContent = b.eaten ? (b.kind === 'devourer' ? 'elsewhere' : b.inHole ? 'α Centauri' : b.destroyed ? 'destroyed' : 'eaten') : formatDistance(Math.max(dist, 0));
     }
 
     // ---- 3D markers ----

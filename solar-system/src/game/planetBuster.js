@@ -122,17 +122,32 @@ export class PlanetBuster {
     const near = g.playerWorld.distanceTo(b.pos) < b.radius * 3;
     if (job.t >= MELT + FUSE) {
       // Boom.
-      this.destroyed.add(b.id);
-      this.save();
-      b.destroyed = b.eaten = true;
-      this.blasts.push({ pos: b.pos.clone(), radius: b.radius, t: 0, mesh: makeBlast(g.engine.scene) });
       this.job = null;
-      g.audio.play('explosion');
       g.hud.toast(`${b.name} is destroyed`, 'Nothing is left but a cloud of glowing debris.', 'warn', 7);
-      if (near) g.die('Blown apart', `You were too close when ${b.name} exploded.`);
+      this.explode(b);
       return;
     }
     if (job.t >= MELT && near) g.warnings.unshift({ level: 'danger', text: `${b.name} explodes in ${Math.ceil(MELT + FUSE - job.t)} s: get clear!` });
+  }
+
+  /**
+   * Blow a world apart now: gone for good (until Reset game), with a flash and
+   * debris. Kills the player within three radii. Also used by planet crashes.
+   */
+  explode(b, cause = `You were too close when ${b.name} exploded.`) {
+    const g = this.game;
+    const near = g.playerWorld.distanceTo(b.pos) < b.radius * 3;
+    this.destroyed.add(b.id);
+    this.save();
+    b.destroyed = b.eaten = true;
+    this.blast(b.pos, b.radius);
+    g.audio.play('explosion');
+    if (near && g.state === 'play') g.die('Blown apart', cause);
+  }
+
+  /** A flash and a debris cloud at a world point. */
+  blast(pos, radius) {
+    this.blasts.push({ pos: pos.clone(), radius, t: 0, mesh: makeBlast(this.game.engine.scene) });
   }
 
   render(origin, time, dt) {
