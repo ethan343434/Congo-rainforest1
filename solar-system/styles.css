@@ -385,7 +385,7 @@ body.touch #app { touch-action: none; }
 body.touch { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 body.touch #keys, body.touch #keys-tab, body.touch #target, body.touch #env, body.touch #heading-tape,
 body.touch #row-vs, body.touch #flight .readout:nth-child(5), body.touch #nav footer, body.touch #fps { display: none; }
-body.touch #nav { left: max(8px, env(safe-area-inset-left)); top: 8px; width: 176px; max-height: 50%; }
+body.touch #nav { left: max(8px, var(--safe-l)); top: 8px; width: 176px; max-height: 50%; }
 body.touch #nav header { padding: 4px 8px; }
 body.touch #nav-list { padding: 2px 0; }
 body.touch #nav-list li { grid-template-columns: 18px 1fr auto; gap: 5px; padding: 3px 8px; }
@@ -401,11 +401,11 @@ body.touch .readout .label { font-size: 9px; }
 body.touch .readout span:last-child { font-size: 12px; }
 body.touch .readout.big span:last-child { font-size: 15px; }
 body.touch .assist { font-size: 9px; }
-body.touch #status { top: 8px; bottom: auto; right: max(8px, env(safe-area-inset-right)); width: 172px; padding: 5px 8px; gap: 3px; }
+body.touch #status { top: 8px; bottom: auto; right: max(8px, var(--safe-r)); width: 172px; padding: 5px 8px; gap: 3px; }
 body.touch .gauge { grid-template-columns: 60px 1fr 36px; gap: 5px; }
 body.touch .gauge .label { font-size: 9px; }
 body.touch .gauge .val { font-size: 10px; }
-body.touch #clock { top: auto; bottom: 6px; left: max(8px, env(safe-area-inset-left)); translate: 0 0; flex-direction: column; gap: 0; font-size: 9.5px; padding: 2px 6px; }
+body.touch #clock { top: auto; bottom: 6px; left: max(8px, var(--safe-l)); translate: 0 0; flex-direction: column; gap: 0; font-size: 9.5px; padding: 2px 6px; }
 body.touch #clock b { font-size: 9px; }
 body.touch #warning { top: 72px; font-size: 11px; padding: 4px 10px; max-width: calc(100% - 380px); }
 body.touch #toasts { top: 100px; width: min(360px, calc(100% - 380px)); min-width: 0; }
@@ -426,11 +426,11 @@ body.touch #aim-label { transform: scale(0.85); }
   background: rgba(143, 211, 255, 0.35); border: 1.5px solid var(--ice);
 }
 #touch-main {
-  position: fixed; right: calc(env(safe-area-inset-right) + 12px); bottom: 12px;
+  position: fixed; right: calc(var(--safe-r) + 12px); bottom: 12px;
   display: grid; grid-template-columns: repeat(2, 62px); gap: 10px; direction: rtl;
 }
 #touch-chips {
-  position: fixed; right: calc(env(safe-area-inset-right) + 160px); bottom: 12px; max-width: min(330px, 46vw);
+  position: fixed; right: calc(var(--safe-r) + 160px); bottom: 12px; max-width: min(330px, 46vw);
   display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; gap: 6px;
 }
 .tbtn, .tchip, #touch-pause {
@@ -443,20 +443,19 @@ body.touch #aim-label { transform: scale(0.85); }
 .tbtn.on, .tchip.on, #touch-pause.on { background: rgba(143, 211, 255, 0.32); border-color: var(--ice); }
 #touch-main .tbtn:nth-child(8) { border-color: var(--danger); color: var(--danger); }
 #touch-pause {
-  position: fixed; top: 8px; left: calc(max(8px, env(safe-area-inset-left)) + 184px); width: 38px; height: 38px;
+  position: fixed; top: 8px; left: calc(max(8px, var(--safe-l)) + 184px); width: 38px; height: 38px;
   border-radius: 50%; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0;
 }
 #touch-pause span { width: 4px; height: 13px; background: var(--ink); }
-.rotate-hint { display: none; }
-@media (orientation: portrait) {
-  body.touch .rotate-hint {
-    display: grid; place-items: center; position: fixed; inset: 0; z-index: 80; background: var(--bg); text-align: center; padding: 24px;
-  }
-  .rotate-hint div { display: flex; flex-direction: column; gap: 8px; }
-  .rotate-hint b { font: 700 22px var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
-  .rotate-hint span { color: var(--muted); }
-}
-/* Short screens (phones in landscape): menus scroll and shrink. */
+/* Landscape lock (view.js): a phone showing the page in portrait gets the
+   whole page turned 90°, so the notch side becomes the game's left or right. */
+body { --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px); }
+body.rot { --safe-l: env(safe-area-inset-top, 0px); --safe-r: env(safe-area-inset-bottom, 0px); overflow: hidden; }
+body.rot.rot-left { --safe-l: env(safe-area-inset-bottom, 0px); --safe-r: env(safe-area-inset-top, 0px); }
+body.rot .card, body.rot #info-card { max-height: calc(100% - 24px); }
+#flip-btn { display: none; }
+body.rot #flip-btn { display: inline-block; }
+/* Short screens (phones in landscape, or turned by the landscape lock): menus scroll and shrink. */
 @media (max-height: 500px) {
   .screen { overflow-y: auto; place-items: start center; }
   .title-block { gap: 8px; margin: auto 0; }
@@ -466,6 +465,13 @@ body.touch #aim-label { transform: scale(0.85); }
   .brief { font-size: 13px; gap: 3px; }
   .btn { padding: 8px 22px; font-size: 13px; }
 }
+body.rot .screen { overflow-y: auto; place-items: start center; }
+body.rot .title-block { gap: 8px; margin: auto 0; }
+body.rot .title-block h1 { font-size: 34px; }
+body.rot .title-block h2 { font-size: 24px; }
+body.rot .tagline { font-size: 14px; }
+body.rot .brief { font-size: 13px; gap: 3px; }
+body.rot .btn { padding: 8px 22px; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
   #warning, .gauge.crit .bar i { animation: none; }

@@ -84,8 +84,10 @@ A desktop browser with WebGL 2 and a keyboard and mouse is best.
 Touch screens get on-screen controls: a joystick under the left thumb (thrust and
 roll in the ship, walking on foot), drag with the right thumb to steer or look, round
 buttons to hold (up, down, boost, brake, jump, run, fire) and small ones to tap
-(exit/board, land, autopilot, warp, pulse, target, view, scan, lights). Play in
-landscape. Phones render at a fixed 720p instead of 1080p. On Windows,
+(exit/board, land, autopilot, warp, pulse, target, view, scan, lights). The game is
+always landscape: if the phone shows the page in portrait (for example with the iPhone's
+Portrait Orientation Lock on, to play lying down) the whole game is turned sideways, and
+**Flip screen** in the pause menu turns it the other way round. Phones render at a fixed 720p instead of 1080p. On Windows,
 `Play on Phone (same Wi-Fi).bat` serves the game to a phone on the same network;
 `?touch=1` or `?touch=0` in the address forces touch controls on or off.
 
@@ -140,6 +142,7 @@ src/game/game.js            game loop, states, controls, hazards, camera, HUD wi
 src/game/cameraRig.js       chase / cockpit / on-foot cameras
 src/game/input.js           keyboard + mouse virtual stick
 src/game/touch.js           on-screen joystick and buttons for touch screens
+src/ui/view.js              landscape lock: turns the page on phones held in portrait
 src/data/bodies.js          33 bodies: physical data, atmospheres, terrain, facts, survivability
 src/data/proxima.js         the Proxima Centauri system; src/data/systems.js picks the system
 src/game/proximaLife.js     Proxima b's creatures, plants, supply crates and laser rifle

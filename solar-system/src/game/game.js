@@ -30,6 +30,7 @@ import { createDetailTexture } from '../terrain/terrainMaterial.js';
 import { CameraRig } from './cameraRig.js';
 import { Input } from './input.js';
 import { IS_TOUCH, TouchControls } from './touch.js';
+import { flipView } from '../ui/view.js';
 import { Hud } from '../ui/hud.js';
 import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
@@ -240,6 +241,8 @@ export class Game {
       try { localStorage.setItem('solv-heat-damage', this.systems.heatImmune ? 'off' : 'on'); } catch (e) { /* not saved */ }
       showHeat();
     });
+    // Landscape lock: turn the game the other way round on the phone.
+    $('flip-btn').addEventListener('click', () => flipView());
     // Reset from the pause menu asks for a second click.
     const pr = $('pause-reset-btn');
     pr.addEventListener('click', () => {

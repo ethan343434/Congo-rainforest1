@@ -11,9 +11,9 @@
 // does not know the difference.
 // =============================================================================
 
-const params = new URLSearchParams(globalThis.location?.search || '');
-export const IS_TOUCH = params.get('touch') === '1' ||
-  (params.get('touch') !== '0' && !!globalThis.matchMedia?.('(pointer: coarse)').matches);
+import { IS_TOUCH, toView, viewSize } from '../ui/view.js';
+
+export { IS_TOUCH };
 
 // [id, label, key code, hold?, when visible(ctx)]
 const MAIN = [
@@ -63,9 +63,7 @@ export class TouchControls {
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
     this.ui.append(this.stickBase, this.main, this.chips, this.pauseBtn);
-    const rotate = el('div', null, 'rotate-hint');
-    rotate.innerHTML = '<div><b>Turn your phone sideways</b><span>Sol Voyager plays in landscape.</span></div>';
-    document.body.append(this.pad, this.ui, rotate);
+    document.body.append(this.pad, this.ui);
 
     for (const def of MAIN) this.addButton(def, this.main, 'tbtn');
     for (const def of CHIPS) this.addButton(def, this.chips, 'tchip');
@@ -121,18 +119,19 @@ export class TouchControls {
 
   padDown(e) {
     e.preventDefault();
-    const left = e.clientX < window.innerWidth * 0.45;
+    const p = toView(e.clientX, e.clientY); // game coordinates (the page may be turned)
+    const left = p.x < viewSize().w * 0.45;
     if (left && this.stickId === null) {
       this.stickId = e.pointerId;
-      this.stickOrigin = { x: e.clientX, y: e.clientY };
-      this.stickBase.style.left = `${e.clientX}px`;
-      this.stickBase.style.top = `${e.clientY}px`;
+      this.stickOrigin = p;
+      this.stickBase.style.left = `${p.x}px`;
+      this.stickBase.style.top = `${p.y}px`;
       this.stickBase.classList.add('on');
       this.moveStick(e);
     } else if (!left && this.lookId === null) {
       this.lookId = e.pointerId;
-      this.lookStart = { x: e.clientX, y: e.clientY };
-      this.lookLast = { x: e.clientX, y: e.clientY };
+      this.lookStart = p;
+      this.lookLast = p;
       this.input.dragging = true;
     } else return;
     try { this.pad.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -142,20 +141,23 @@ export class TouchControls {
     if (e.pointerId === this.stickId) this.moveStick(e);
     else if (e.pointerId === this.lookId) {
       const inp = this.input;
-      const r = Math.min(window.innerWidth, window.innerHeight) * 0.28;
-      inp.stick.x = (e.clientX - this.lookStart.x) / r;
-      inp.stick.y = (e.clientY - this.lookStart.y) / r;
+      const p = toView(e.clientX, e.clientY);
+      const { w, h } = viewSize();
+      const r = Math.min(w, h) * 0.28;
+      inp.stick.x = (p.x - this.lookStart.x) / r;
+      inp.stick.y = (p.y - this.lookStart.y) / r;
       const m = Math.hypot(inp.stick.x, inp.stick.y);
       if (m > 1) { inp.stick.x /= m; inp.stick.y /= m; }
-      inp.look.dx += (e.clientX - this.lookLast.x) * 2.2;
-      inp.look.dy += (e.clientY - this.lookLast.y) * 2.2;
-      this.lookLast = { x: e.clientX, y: e.clientY };
+      inp.look.dx += (p.x - this.lookLast.x) * 2.2;
+      inp.look.dy += (p.y - this.lookLast.y) * 2.2;
+      this.lookLast = p;
     }
   }
 
   moveStick(e) {
     const R = 56;
-    let dx = (e.clientX - this.stickOrigin.x) / R, dy = (e.clientY - this.stickOrigin.y) / R;
+    const p = toView(e.clientX, e.clientY);
+    let dx = (p.x - this.stickOrigin.x) / R, dy = (p.y - this.stickOrigin.y) / R;
     const m = Math.hypot(dx, dy);
     if (m > 1) { dx /= m; dy /= m; }
     this.stickKnob.style.transform = `translate(${dx * R}px, ${dy * R}px)`;

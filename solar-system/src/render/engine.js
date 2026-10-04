@@ -7,6 +7,7 @@
 // particle effects, in that order.
 // =============================================================================
 import * as THREE from 'three';
+import { updateView } from '../ui/view.js';
 
 // Fixed 1080p; phones get a fixed 720p, which is still sharp on a 6-inch
 // screen and leaves their GPUs room for 30 fps. (`?rh=540` overrides it for
@@ -71,8 +72,7 @@ export class Engine {
 
   /** Fixed resolution: the drawing buffer is always RENDER_HEIGHT pixels tall. */
   resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const { w, h } = updateView(); // landscape even when a phone shows the page in portrait
     this.renderer.setPixelRatio(RENDER_HEIGHT / Math.max(h, 1));
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;

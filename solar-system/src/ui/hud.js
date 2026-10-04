@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { formatDistance, formatSpeed, formatDuration, formatPressure, formatTemp, KELVIN, G0, C_LIGHT, AU } from '../constants.js';
 import { formatDose } from '../sim/hazards.js';
+import { viewSize } from './view.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -82,7 +83,7 @@ export class Hud {
    *        suit, onFoot, telemetry, env, landmarks, now, playerPos }
    */
   update(ctx) {
-    const W = window.innerWidth, H = window.innerHeight;
+    const { w: W, h: H } = viewSize();
     const f = (H / 2) / Math.tan((ctx.camera.fov * Math.PI) / 360);
     const textTick = ctx.now - this.lastText > 0.1;
     if (textTick) this.lastText = ctx.now;
