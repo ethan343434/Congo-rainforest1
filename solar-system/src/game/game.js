@@ -92,6 +92,7 @@ export class Game {
     this.walker = new Walker();
     this.ship.groundHeight = (body, dir) => this.terrainFor(body)?.height(dir) ?? 0;
     this.ship.groundNormal = (body, dir) => this.terrainFor(body)?.normal(dir) ?? dir.clone();
+    this.ship.groundReady = (body) => !!this.terrainFor(body);
 
     this.shipModel = new ShipModel(null);
     eng.scene.add(this.shipModel.root);
@@ -744,7 +745,10 @@ export class Game {
           if (e.survivable) { this.crashLanding(e.body, e.speed); break; }
           this.systems.destroy(`Crashed into ${e.body.name} at ${formatSpeed(e.speed)}.`);
           break;
-        case 'autoland': this.hud.toast('Auto-land', 'Flying you down to the surface. Any stick or thrust input takes back control.', '', 5); break;
+        case 'autoland':
+          this.prepareTerrain(ship.parent);
+          this.hud.toast('Auto-land', 'Touching down in 10 seconds. Any stick or thrust input takes back control.', '', 5);
+          break;
         case 'takeoff': this.audio.play('door'); break;
         default: break;
       }

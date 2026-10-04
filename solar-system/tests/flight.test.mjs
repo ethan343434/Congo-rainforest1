@@ -228,12 +228,16 @@ for (const [from, to, maxTime] of [['earth', 'moon', 40], ['earth', 'mars', 90],
   const a = arrive(true);
   check('Auto-land is available from the warp arrival point over Mars', a.ship.autoLand());
   let touch = null;
-  run(a, 240, 1 / 60, (t) => {
+  const hull = new ShipSystems(); // heat damage on
+  run(a, 60, 1 / 60, (t) => {
+    const tel = a.ship.telemetry;
+    hull.update({ dt: 1 / 60, now: t, solarFlux: 590, heatFlux: tel.heatFlux, dynPressure: tel.dynPressure, pressure: tel.pressure, airTemp: tel.temperature, airDensity: tel.density, radiation: 0, ringHazard: 0 });
     const ev = a.ship.events.find((e) => ['landed', 'crash', 'impact'].includes(e.type));
     a.ship.events.length = 0;
     if (ev) { touch = { ...ev, t }; return false; }
   });
-  check('Auto-land touches down gently on Mars within 3 minutes', touch?.type === 'landed' && touch.t < 180, `${touch?.type} at ${touch?.speed?.toFixed(1)} m/s after ${touch?.t?.toFixed(0)} s`);
+  check('Auto-land touches down gently on Mars in 10 seconds, from 5,400 km up', touch?.type === 'landed' && Math.abs(touch.t - SHIP.autoLandTime) < 0.1 && touch.speed < SHIP.safeTouchdown, `${touch?.type} at ${touch?.speed?.toFixed(1)} m/s after ${touch?.t?.toFixed(2)} s`);
+  check('…through the atmosphere without heat or air damage', !hull.destroyed && hull.hull === 100, `hull ${hull.hull.toFixed(0)}%`);
 
   const entry = (fa) => {
     const c = arrive(fa);

@@ -22,7 +22,8 @@
 //   below what the hull can shed as heat. Turn assist off for a real,
 //   unprotected entry.
 // * Autopilot: aligns, pulses, routes around the Sun, and drops you out on the
-//   sunlit side of the target. Auto-land flies the whole descent from orbit.
+//   sunlit side of the target. Auto-land flies you down from orbit to the
+//   ground below in a fixed 10 seconds.
 // * Landing: gentle touchdowns on solid ground; hard ones damage the ship,
 //   and a crash on a rocky world or moon wrecks it (the game layer throws
 //   you clear and runs the repairs).
@@ -56,6 +57,7 @@ export const SHIP = {
   safeHeatFlux: 60e3,   // W/m²: with flight assist, entry heating is held here (hull ≈ 800 °C)
   safeDynPressure: 48e3, // Pa: …and air pressure on the hull here (60% of its limit)
   cruiseMax: 0.9 * C_LIGHT,
+  autoLandTime: 10,     // s: auto-land always takes this long
   pulseK: 0.75,         // pulse speed per metre of clearance (1/s)
   pulseMax: 2400 * C_LIGHT,
   pulseSpool: 1.2,      // s
@@ -97,6 +99,7 @@ export class ShipSim {
     };
     this.groundHeight = () => 0;   // terrain hook: (body, dirLocal) → metres above the reference ellipsoid
     this.groundNormal = null;      // optional hook: (body, dirLocal) → local normal
+    this.groundReady = null;       // optional hook: (body) → is the detailed ground loaded?
     this.events = [];              // queued events for the game layer
     this.gearDown = false;
   }
@@ -309,6 +312,10 @@ export class ShipSim {
 
   cancelAutopilot(silent) {
     if (!this.autopilot) return;
+    // Taking over mid-landing: hold position over the ground, don't keep falling.
+    if (this.autopilot.phase === 'land' && this.mode === 'flight') {
+      this.vel.copy(this.parent.surfaceVelocity(this.rel, new THREE.Vector3()));
+    }
     this.autopilot = null;
     if (!silent) this.events.push({ type: 'autopilot-off' });
   }
@@ -384,7 +391,8 @@ export class ShipSim {
       }
     }
     if (this.autopilot) this.updateAutopilot(dt);
-    if (this.mode === 'pulse') this.updatePulse(dt);
+    if (this.autopilot?.phase === 'land') this.updateAutoLand(dt);
+    else if (this.mode === 'pulse') this.updatePulse(dt);
     else this.updateFlight(dt);
     this.updateTelemetry();
   }
@@ -441,7 +449,7 @@ export class ShipSim {
 
     // Cruise engines: spool up while working hard away from surfaces, and
     // stay strong while moving faster than anything gravity could explain.
-    const assist = this.flightAssist || inp.brake || (this.autopilot && this.autopilot.phase === 'land');
+    const assist = this.flightAssist || inp.brake;
     const env = this.cruiseEnvelope(this.worldPos(new THREE.Vector3()), info);
     const cruiseW = smoothstep(SHIP.cruiseNear, SHIP.cruiseFar, env.clear);
     const vNatural = 1.2 * Math.sqrt((2 * body.GM) / d) + 1000;
@@ -450,9 +458,8 @@ export class ShipSim {
     this.cruise = working ? Math.min(this.cruise + dt, 30) : Math.max(0, this.cruise - 3 * dt);
     const mult = 1 + cruiseW * (Math.min(SHIP.cruiseMaxMult, Math.max(Math.exp(SHIP.cruiseRate * this.cruise), 1 + Math.max(0, errMag - vNatural) / SHIP.cruiseVScale)) - 1);
 
-    // Thrust in the ship frame (x right, y up, z back). Auto-land may boost.
-    const landing = this.autopilot && this.autopilot.phase === 'land';
-    const boost = (inp.boost || landing ? SHIP.boost : 1) * mult;
+    // Thrust in the ship frame (x right, y up, z back).
+    const boost = (inp.boost ? SHIP.boost : 1) * mult;
     const caps = { x: SHIP.liftAccel * boost, y: SHIP.liftAccel * boost, zf: SHIP.mainAccel * boost, zb: SHIP.reverseAccel * boost };
     const cmd = new THREE.Vector3(inp.strafe, inp.lift, -inp.thrust);
     const qInv = this.quat.clone().invert();
@@ -460,15 +467,6 @@ export class ShipSim {
     if (assist) {
       // Desired: kill velocity relative to the reference frame and cancel gravity.
       const err = this.vel.clone().sub(vRef);
-      if (landing) {
-        // Descend as fast as the boosted lift thrusters, without the cruise
-        // spool that fades near the ground, could still stop (half their
-        // margin over gravity), easing off over the last few hundred metres.
-        const aUp = Math.max(0.5, SHIP.liftAccel * SHIP.boost - gMag);
-        const g0 = Math.max(0, info.ground), H = SHIP.cruiseFar; // above H the cruise engines brake hard
-        const descent = -Math.max(1.6, Math.min(g0 * 0.25, Math.sqrt(aUp * Math.min(g0, H)) + Math.max(0, g0 - H)));
-        err.addScaledVector(_up, -descent);
-      }
       const desired = err.multiplyScalar(-SHIP.faGain * (inp.brake ? 2.5 : 1)).sub(gravity);
       const desiredLocal = desired.applyQuaternion(qInv);
       local.copy(desiredLocal);
@@ -721,9 +719,40 @@ export class ShipSim {
     if (this.mode !== 'flight') return false;
     if (!this.parent.def.terrain) { this.events.push({ type: 'pulse-denied', why: 'There is no solid ground here' }); return false; }
     if (t.ground > this.autoLandRange()) { this.events.push({ type: 'pulse-denied', why: `Get within ${Math.round(this.autoLandRange() / 1000).toLocaleString('en-US')} km of the surface to auto-land` }); return false; }
-    this.autopilot = { target: this.parent, phase: 'land' };
+    const info = this.surfaceInfo();
+    this.autopilot = { target: this.parent, phase: 'land', t: 0, ground0: Math.max(0, info.ground), dirLocal: info.dirLocal.clone() };
     this.events.push({ type: 'autoland' });
     return true;
+  }
+
+  /**
+   * Auto-land: a scripted descent onto the ground straight below, turning
+   * with the world, that always takes SHIP.autoLandTime. Height above the
+   * ground follows (1−u)³(1+3u) of the starting height (u = t / T): it
+   * starts gently, drops fast, then eases in, and the ship sets down level.
+   * The descent is shielded: no entry heating or air loads while it flies.
+   */
+  updateAutoLand(dt) {
+    const ap = this.autopilot;
+    const body = this.parent;
+    ap.t += dt;
+    this.telemetry.speedLimited = this.telemetry.entryLimited = false;
+    // Don't set down before the detailed ground is known: hover just above.
+    if (ap.t >= SHIP.autoLandTime && this.groundReady && !this.groundReady(body)) ap.t = SHIP.autoLandTime * 0.995;
+    const u = Math.min(1, ap.t / SHIP.autoLandTime);
+    const h = ap.ground0 * (1 - u) ** 3 * (1 + 3 * u);
+    const dir = body.toWorld(ap.dirLocal.clone()).normalize();
+    const groundR = body.surfaceRadiusLocal(ap.dirLocal) + this.groundHeight(body, ap.dirLocal);
+    const prev = this.rel.clone();
+    this.rel.copy(dir).multiplyScalar(groundR + SHIP.gearHeight + h);
+    // Velocity: the ground's motion plus the descent, for the HUD and effects.
+    this.vel.copy(this.rel).sub(prev).divideScalar(Math.max(dt, 1e-6));
+    if (u >= 1) {
+      const normalLocal = this.groundNormal ? this.groundNormal(body, ap.dirLocal) : ap.dirLocal;
+      const descent = ap.ground0 * 12 * u * (1 - u) ** 2 / SHIP.autoLandTime;
+      this.land(body, body.toWorld(normalLocal.clone()));
+      this.events.push({ type: 'landed', body, speed: Math.max(0.8, descent) });
+    }
   }
 
   updateTelemetry() {
@@ -755,8 +784,9 @@ export class ShipSim {
       t.temperature = s.temperature;
       t.inAtmosphere = s.density > 0 && info.altitude < atm.top;
       const vAir = this.vel.distanceTo(vSurf);
-      t.heatFlux = this.mode === 'pulse' ? 0 : entryHeating(s.density, vAir);
-      t.dynPressure = dynamicPressure(s.density, vAir);
+      const shielded = this.mode === 'pulse' || this.autopilot?.phase === 'land';
+      t.heatFlux = shielded ? 0 : entryHeating(s.density, vAir);
+      t.dynPressure = shielded ? 0 : dynamicPressure(s.density, vAir);
     } else {
       t.pressure = 0; t.density = 0; t.temperature = null; t.inAtmosphere = false; t.heatFlux = 0; t.dynPressure = 0;
     }
