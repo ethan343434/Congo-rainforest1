@@ -288,7 +288,26 @@ for (const id of ['moon', 'phobos']) {
   });
   const g = c.ship.telemetry.ground;
   check('Pulse drive works inside Mars\' atmosphere', ok, '50 km up');
-  check('…and a pulse dive at the ground drops out safely above it', out?.type === 'pulse-exit' && g > 1500 && c.ship.telemetry.surfaceSpeed < 1, `${out?.type} at ${(g / 1000).toFixed(1)} km, ${c.ship.telemetry.surfaceSpeed.toFixed(1)} m/s over the ground`);
+  check('…and a pulse dive at the ground stops just above it', out?.type === 'pulse-exit' && out.reason === 'surface' && g >= SHIP.pulseHover - 0.5 && c.ship.telemetry.surfaceSpeed < 1, `${out?.type} at ${g.toFixed(1)} m, ${c.ship.telemetry.surfaceSpeed.toFixed(1)} m/s over the ground`);
+}
+
+// 15. Pulse straight off the Moon's surface, skimming along it without hitting it.
+{
+  const c = setup('moon', 2.1);
+  c.ship.land(c.b, c.ship.rel.clone().normalize());
+  c.ship.updateTelemetry();
+  const started = c.ship.togglePulse();
+  let lowest = Infinity, crashed = false, pulsed = false;
+  run(c, 12, 1 / 60, () => {
+    if (c.ship.mode === 'pulse') {
+      pulsed = true;
+      lowest = Math.min(lowest, c.ship.surfaceInfo().ground);
+    }
+    if (c.ship.events.some((e) => e.type === 'crash')) crashed = true;
+    c.ship.events.length = 0;
+  });
+  check('Pulse drive starts straight off the ground', started && pulsed, `mode ${c.ship.mode}`);
+  check('…and skims over the surface without going under it', !crashed && lowest >= SHIP.pulseHover - 0.5, `lowest ${lowest.toFixed(1)} m above ground while pulsing, now ${c.ship.telemetry.ground.toFixed(0)} m up at ${(c.ship.pulseSpeed / 1000).toFixed(1)} km/s`);
 }
 
 console.log(results.join('\n'));

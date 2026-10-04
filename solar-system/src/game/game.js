@@ -721,7 +721,8 @@ export class Game {
         case 'pulse-start': this.audio.play('pulse-start'); break;
         case 'pulse-exit':
           this.audio.play('pulse-exit');
-          if (e.reason === 'interdicted') this.hud.toast('Pulse drive disengaged', e.body.id === 'sun' ? 'Too close to the Sun for the pulse drive.' : `Dropped out ${(SHIP.pulseFloor / 1000).toFixed(0)} km above ${e.body.name}’s surface.`, 'warn', 4);
+          if (e.reason === 'surface') this.hud.toast('Pulse drive disengaged', `Stopped just above ${e.body.name}’s surface.`, 'warn', 4);
+          else if (e.reason === 'barrier') this.hud.toast('Pulse drive disengaged', 'The Earth Defense Grid stopped the pulse drive.', 'warn', 4);
           break;
         case 'autopilot': this.hud.toast('Autopilot', `Course laid in for ${e.target.name}.`, '', 4); this.audio.play('blip'); break;
         case 'autopilot-off': this.hud.toast('Autopilot off', 'Manual control.', '', 3); break;
@@ -1569,7 +1570,7 @@ export class Game {
       [['T', '0–9'], 'Choose a target', true],
       [['K'], hasTarget ? `Warp to ${this.target.name}` : 'Warp drive (needs a target)', hasTarget && !landed, false],
       [['G'], ship.autopilot ? 'Cancel autopilot' : 'Autopilot to the target', hasTarget && !landed],
-      [['J'], ship.mode === 'pulse' ? 'Leave pulse drive' : 'Pulse drive (faster than light)', flying],
+      [['J'], ship.mode === 'pulse' ? 'Leave pulse drive' : 'Pulse drive (faster than light)', flying || landed],
       [['L'], 'Auto-land', !!lowSlow, !!lowSlow],
       [['E'], 'Step outside', landed, landed],
       [['Z'], ship.flightAssist ? 'Flight assist off' : 'Flight assist on', flying],

@@ -11,8 +11,9 @@
 //   atmosphere; dynamic pressure shakes and can break the ship.
 // * Pulse drive: faster than light, its speed proportional to your distance
 //   from the nearest surface, so you can cross the system in under a minute
-//   and still never ram a planet. It works in atmospheres too, down to 2 km
-//   above the ground (the Sun keeps you 0.02 AU away).
+//   and still never ram a planet. It works anywhere, even from the ground:
+//   near a surface it keeps a minimum speed, skims over the terrain, and
+//   stops just above the ground if you dive into it.
 // * Cruise engines: away from planets the main engines spool up
 //   exponentially, so holding W takes you from rest to the 0.9 c ceiling in
 //   about 20 s (14 s with boost). Near a surface (or the top of an atmosphere)
@@ -62,7 +63,8 @@ export const SHIP = {
   pulseK: 0.75,         // pulse speed per metre of clearance (1/s)
   pulseMax: 2400 * C_LIGHT,
   pulseSpool: 1.2,      // s
-  pulseFloor: 2000,     // m above the ground: lowest the pulse drive runs
+  pulseMin: 1500,       // m/s: slowest pulse speed, right by a surface
+  pulseHover: 5,        // m: the pulse drive never goes lower than this above ground
 };
 
 const _v = new THREE.Vector3();
@@ -250,18 +252,13 @@ export class ShipSim {
 
   // ---- Pulse drive & autopilot ------------------------------------------------------------
   canPulse() {
-    if (this.mode === 'landed' || this.mode === 'destroyed') return { ok: false, why: 'Take off first' };
-    const wp = this.worldPos(new THREE.Vector3());
-    const near = this.pulseClearance(wp);
-    if (near.distance < this.pulseFloor(near.body)) {
-      return { ok: false, why: near.body === this.eph.sun ? 'Too close to the Sun' : `Climb above ${(SHIP.pulseFloor / 1000).toFixed(0)} km first` };
-    }
+    if (this.mode === 'destroyed') return { ok: false, why: 'The ship is wrecked' };
     return { ok: true };
   }
 
-  /** Lowest clearance the pulse drive runs at: 2 km above ground, 0.02 AU from the Sun. */
-  pulseFloor(body) {
-    return body === this.eph.sun ? 0.02 * AU : SHIP.pulseFloor;
+  /** The autopilot still climbs clear of atmospheres and gravity wells before it pulses. */
+  autopilotCanPulse() {
+    return this.canPulse().ok && this.telemetry.altitude >= this.interdictionAltitude(this.parent);
   }
 
   /**
@@ -288,6 +285,7 @@ export class ShipSim {
     }
     const c = this.canPulse();
     if (!c.ok) { this.events.push({ type: 'pulse-denied', why: c.why }); return false; }
+    if (this.mode === 'landed') this.takeOff(); // straight off the ground
     this.spool = 0.0001;
     this.events.push({ type: 'pulse-spool' });
     return true;
@@ -652,7 +650,7 @@ export class ShipSim {
   updatePulse(dt) {
     const wp = this.worldPos(new THREE.Vector3());
     const near = this.pulseClearance(wp);
-    let vTarget = Math.min(SHIP.pulseMax, SHIP.pulseK * Math.max(near.distance, 0));
+    let vTarget = Math.min(SHIP.pulseMax, Math.max(SHIP.pulseMin, SHIP.pulseK * Math.max(near.distance, 0)));
     const ap = this.autopilot;
     let aim = null;
     if (ap && ap.phase === 'cruise') {
@@ -668,12 +666,6 @@ export class ShipSim {
         return;
       }
     }
-    // Drop out before the speed collapses near a surface.
-    const nb = near.body;
-    if (nb && near.distance < this.pulseFloor(nb) * 0.95) {
-      this.exitPulse('interdicted');
-      return;
-    }
     // Accelerate exponentially, decelerate quickly.
     const rate = vTarget > this.pulseSpeed ? 1.6 : 6;
     this.pulseSpeed += (vTarget - this.pulseSpeed) * Math.min(1, dt * rate);
@@ -683,6 +675,21 @@ export class ShipSim {
     this.parent = dom;
     this.rel.copy(wp).sub(dom.pos);
     this.vel.copy(fwd).multiplyScalar(Math.min(this.pulseSpeed, 3e4));
+    const up = this.rel.clone().normalize();
+    // Earth's defence grid stops the pulse drive too.
+    const bar = dom.def.barrier;
+    if (bar && this.rel.length() < dom.radius + bar.altitude) {
+      this.rel.copy(up).multiplyScalar(dom.radius + bar.altitude + 5);
+      this.exitPulse('barrier');
+      this.events.push({ type: 'barrier', body: dom, dirLocal: dom.toLocal(up.clone()), speed: this.pulseSpeed });
+      return;
+    }
+    // Never below the ground: skim over it, or stop just above it when diving in.
+    const ground = this.surfaceInfo(dom, this.rel).ground;
+    if (ground < SHIP.pulseHover) {
+      this.rel.addScaledVector(up, SHIP.pulseHover - ground);
+      if (fwd.dot(up) < -0.5) this.exitPulse('surface');
+    }
   }
 
   updateAutopilot(dt) {
@@ -704,8 +711,7 @@ export class ShipSim {
     ap.steer = axisLocal.lengthSq() > 1e-12 ? axisLocal.normalize().multiplyScalar(rate) : new THREE.Vector3();
     if (ap.phase === 'align') {
       if (angle < 0.03) {
-        const c = this.canPulse();
-        if (!c.ok) {
+        if (!this.autopilotCanPulse()) {
           // Too low to pulse: climb straight up first.
           ap.phase = 'climb';
         } else {
@@ -715,7 +721,7 @@ export class ShipSim {
       }
     } else if (ap.phase === 'climb') {
       this.input.lift = 1;
-      if (this.canPulse().ok) ap.phase = 'align';
+      if (this.autopilotCanPulse()) ap.phase = 'align';
     } else if (ap.phase === 'cruise' && this.mode !== 'pulse' && this.spool === 0) {
       // Dropped out early (interdiction) — re-align and continue if possible.
       ap.phase = 'align';
