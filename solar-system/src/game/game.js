@@ -1453,17 +1453,22 @@ export class Game {
       landmarks.push({ name: s.lm.name.split(' · ')[0], world, distance: world.distanceTo(P) });
     }
     if (this.life) landmarks.push(...this.life.landmarks());
-    // Named features (Olympus Mons) on the world you are at or targeting, seen from orbit.
+    // Named places on the world you are at or targeting, seen from orbit: major
+    // ones from 30,000 km, the rest from 5,000 km; the closest ten are drawn.
+    const places = [];
     for (const fb of new Set([body, this.target])) {
-      for (const f of fb?.def.features || []) {
-        if (fb.eaten) continue;
+      if (!fb || fb.eaten) continue;
+      for (const f of fb.def.features || []) {
         const la = (f.lat * Math.PI) / 180, lo = (f.lon * Math.PI) / 180;
         const dir = fb.toWorld(new THREE.Vector3(Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo)));
-        const world = fb.pos.clone().addScaledVector(dir, fb.radius + f.height);
+        const world = fb.pos.clone().addScaledVector(dir, fb.radius + Math.max(0, f.height || 0));
         if (dir.dot(_v.subVectors(this.camWorld, world)) < 0) continue; // on the far side
-        landmarks.push({ name: f.name, world, distance: world.distanceTo(P), range: 3e7 });
+        const range = f.major ? 3e7 : 5e6;
+        const distance = world.distanceTo(P);
+        if (distance < range) places.push({ name: f.name, world, distance, range });
       }
     }
+    landmarks.push(...places.sort((a, b) => a.distance - b.distance).slice(0, 10));
     // Prompt.
     let prompt = null;
     if (this.state === 'play') {

@@ -314,6 +314,7 @@ export function createHeightfield(params) {
       const lat = Math.asin(Math.max(-1, Math.min(1, y)));
       h += T.ridge.amp * Math.exp(-((lat / T.ridge.width) ** 2)) * (0.75 + 0.25 * vnoise(px / 80000, py / 80000, pz / 80000, seed));
     }
+    if (T.seaLevel !== undefined && h < T.seaLevel) h = T.seaLevel; // flat ocean surface (Earth)
     if (T.rocks && minFeature < 3) {
       // Regolith micro-relief: small lumps and pits under your boots.
       h += 0.06 * vnoise(px / 1.3, py / 1.3, pz / 1.3, seed ^ 0x4242) + 0.025 * vnoise(px / 0.45, py / 0.45, pz / 0.45, seed ^ 0x4343);

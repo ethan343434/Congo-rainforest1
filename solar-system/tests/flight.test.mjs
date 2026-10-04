@@ -100,16 +100,17 @@ for (const [from, to, maxTime] of [['earth', 'moon', 40], ['earth', 'mars', 90],
   check(`Autopilot ${from} → ${to} never grazes a body or the Sun`, minClear > 0 && !burned, `closest surface ${(minClear / 1000).toFixed(0)} km`);
 }
 
-// 7. Earth's barrier stops a dive.
+// 7. Earth is open: auto-land from orbit sets down on its surface.
 {
-  const c = setup('earth', 1500e3, { fa: false });
-  c.ship.vel.copy(c.ship.rel).normalize().multiplyScalar(-8000);
-  let minAlt = Infinity, bounced = false;
-  run(c, 200, 1 / 60, () => {
-    minAlt = Math.min(minAlt, c.ship.rel.length() - c.b.radius);
-    if (c.ship.events.some((e) => e.type === 'barrier')) bounced = true;
+  const c = setup('earth', 1500e3);
+  const ok = c.ship.autoLand();
+  let landed = null;
+  run(c, 15, 1 / 60, () => {
+    landed = c.ship.events.find((e) => e.type === 'landed' || e.type === 'crash' || e.type === 'barrier');
+    c.ship.events.length = 0;
+    return !landed;
   });
-  check('Earth barrier keeps ships above 600 km', bounced && minAlt >= 600e3 - 10, `lowest ${(minAlt / 1000).toFixed(1)} km`);
+  check('Earth is open: auto-land touches down on it', ok && landed?.type === 'landed', `${landed?.type} after ${c.t.toFixed(0)} s`);
 }
 
 // 8. Auto-land on the Moon from 600 m.

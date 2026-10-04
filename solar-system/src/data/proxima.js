@@ -112,3 +112,16 @@ export const PROXIMA_BODIES = [
 ];
 
 export const PROXIMA_NAV = ['sun', 'proxd', 'proxb'];
+
+// Named places on Proxima b, labelled from orbit (the star is over 0°, 0°).
+const proxbDef = PROXIMA_BODIES.find((b) => b.id === 'proxb');
+if (proxbDef) {
+  proxbDef.features = [
+    { name: 'Substellar Point · the Scorch', lat: 0, lon: 0, height: 0, major: true },
+    { name: 'Antistellar Point · the Long Night', lat: 0, lon: 180, height: 0, major: true },
+    { name: 'Twilight Ring (east)', lat: 0, lon: 90, height: 0, major: true },
+    { name: 'Twilight Ring (west)', lat: 0, lon: -90, height: 0, major: true },
+    { name: 'North Pole', lat: 89.9, lon: 0, height: 0 },
+    { name: 'South Pole', lat: -89.9, lon: 0, height: 0 },
+  ];
+}

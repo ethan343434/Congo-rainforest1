@@ -114,9 +114,15 @@ export const BODIES = [
       composition: '78% N₂ · 21% O₂ · 1% Ar',
       rayleigh: [5.8e-6, 13.5e-6, 33.1e-6], mie: 21e-6, mieScaleHeight: 1.2 * KM, mieG: 0.76,
       haze: [0.55, 0.7, 0.95],
+      breathable: true,
     },
-    barrier: { altitude: 600 * KM, label: 'Earth Orbital Defense Grid' },
     temps: { dayK: 300, nightK: 280 },
+    // Land anywhere: ETOPO elevations from sea level to Everest (8.85 km); the
+    // oceans are a flat surface at sea level.
+    terrain: {
+      heightmap: { file: 'earth_height.jpg', scale: 9.03 * KM, offset: 0 },
+      noise: { amp: 160, scale: 4 * KM }, seaLevel: 0, rocks: 0.6,
+    },
     stats: { type: 'Rocky planet', day: '23 h 56 min', year: '365.25 days', temp: '15 °C average', moons: 1 },
     facts: [
       'The only world known to have life, and liquid water on its surface.',
@@ -125,8 +131,8 @@ export const BODIES = [
     ],
     survivability: {
       rating: 'Habitable',
-      summary: 'Home. Breathable air, liquid water, 1 g. In this game an orbital defense grid keeps ships out.',
-      hazards: ['Restricted airspace: defense barrier at 600 km'],
+      summary: 'Home. Breathable air, liquid water, 1 g. Land anywhere and step outside without a helmet.',
+      hazards: ['Atmospheric entry heats the hull: come in slowly'],
     },
   },
   {
@@ -183,7 +189,7 @@ export const BODIES = [
       // summit calderas 3 km deep (Mars Global Surveyor MOLA / Mars Express).
       volcano: { lat: 18.65, lon: -133.8, radius: 300 * KM, summit: 21.9 * KM, cliffTop: 7.5 * KM, plains: -1.2 * KM, caldera: 40 * KM, calderaDepth: 3.2 * KM },
     },
-    features: [{ name: 'Olympus Mons', lat: 18.65, lon: -133.8, height: 21.9 * KM, note: 'Tallest volcano in the Solar System' }],
+    features: [{ name: 'Olympus Mons', lat: 18.65, lon: -133.8, height: 21.9 * KM, major: true }],
     stats: { type: 'Rocky planet', day: '24 h 40 min (a “sol”)', year: '687 Earth days', temp: '−153 °C to 20 °C', moons: 2 },
     facts: [
       'Olympus Mons is the tallest volcano in the solar system: 22 km high, 2.5× Everest.',
@@ -644,4 +650,61 @@ export const NAV_ORDER = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter',
 
 export function childrenOf(id) {
   return BODIES.filter((b) => b.parent === id);
+}
+
+// ---- Named places, labelled from orbit ---------------------------------------------------------
+// [name, latitude °N, longitude °E, height above the datum (m), major?]. Major places show
+// from far away; the rest appear as you approach (the closest few are drawn).
+const PLACES = {
+  earth: [
+    ['Mount Everest', 27.988, 86.925, 8849, true], ['Kennedy Space Center', 28.573, -80.649, 3, true],
+    ['Congo Rainforest', -0.5, 23.0, 400, true], ['Giza Pyramids', 29.979, 31.134, 60, true],
+    ['North Pole', 89.9, 0, 0, true], ['South Pole', -89.9, 0, 2835, true],
+    ['New York City', 40.713, -74.006, 10, true], ['London', 51.507, -0.128, 11, true], ['Tokyo', 35.676, 139.650, 40, true],
+    ['Sahara Desert', 23.4, 25.7, 400, true], ['Amazon Rainforest', -3.47, -62.2, 50, true],
+    ['Kilimanjaro', -3.067, 37.356, 5895], ['Grand Canyon', 36.107, -112.113, 2100], ['Niagara Falls', 43.096, -79.038, 100],
+    ['Los Angeles', 34.052, -118.244, 90], ['Mexico City', 19.433, -99.133, 2240], ['Rio de Janeiro', -22.907, -43.173, 5],
+    ['Buenos Aires', -34.604, -58.382, 25], ['Paris', 48.857, 2.352, 35], ['Rome', 41.903, 12.496, 21], ['Moscow', 55.756, 37.617, 156],
+    ['Lagos', 6.524, 3.379, 41], ['Kinshasa', -4.442, 15.266, 240], ['Cape Town', -33.925, 18.424, 25], ['Dubai', 25.205, 55.271, 5],
+    ['Mumbai', 19.076, 72.878, 14], ['Beijing', 39.904, 116.407, 44], ['Singapore', 1.352, 103.820, 15], ['Sydney', -33.869, 151.209, 3],
+    ['Uluru', -25.344, 131.037, 863], ['Mauna Kea', 19.821, -155.468, 4207], ['Baikonur Cosmodrome', 45.965, 63.305, 90],
+    ['Mariana Trench', 11.35, 142.2, 0], ['Reykjavík', 64.147, -21.943, 20], ['Toronto', 43.653, -79.383, 76],
+    ['Machu Picchu', -13.163, -72.545, 2430], ['Taj Mahal', 27.175, 78.042, 170], ['Great Barrier Reef', -18.29, 147.70, 0],
+    ['McMurdo Station', -77.846, 166.676, 10], ['Hawaii', 19.9, -155.6, 100], ['Himalayas', 28.6, 83.9, 6000],
+  ],
+  moon: [
+    ['Tycho', -43.31, -11.36, 0, true], ['Copernicus', 9.62, -20.08, 0, true], ['Mare Tranquillitatis', 8.5, 31.4, 0, true],
+    ['Mare Imbrium', 32.8, -15.6, 0, true], ['Oceanus Procellarum', 18.4, -57.4, 0], ['Mare Serenitatis', 28.0, 17.5, 0],
+    ['Shackleton Crater', -89.9, 0, 0, true], ['South Pole–Aitken Basin', -53, -169, 0, true], ['Chang’e 4', -45.44, 177.60, 0],
+    ['Luna 2 impact', 29.1, 0, 0], ['Lunokhod 1', 38.24, -35.0, 0], ['Mons Huygens', 19.9, -2.9, 5500],
+  ],
+  mars: [
+    ['Valles Marineris', -13.9, -59.2, 0, true], ['Hellas Planitia', -42.4, 70.5, -7000, true], ['Gale Crater · Curiosity', -4.59, 137.44, -4500, true],
+    ['Jezero Crater · Perseverance', 18.38, 77.58, -2600, true], ['Arsia Mons', -8.26, -120.1, 17700], ['Pavonis Mons', 1.48, -112.96, 14000],
+    ['Ascraeus Mons', 11.92, -104.08, 18200], ['Elysium Mons', 25.02, 147.21, 12600], ['Viking 1', 22.27, -47.95, -3600], ['Viking 2', 47.64, 134.29, -4500],
+    ['Mars Pathfinder', 19.13, -33.22, -3700], ['Spirit rover', -14.57, 175.47, -1900], ['Opportunity rover', -1.95, -5.53, -1400],
+    ['InSight', 4.50, 135.62, -2600], ['Zhurong rover', 25.07, 109.93, -4100], ['Cydonia', 40.75, -9.46, -3000],
+    ['North Polar Cap', 85, 0, -2000, true], ['South Polar Cap', -86, 0, 3000, true],
+  ],
+  mercury: [['Caloris Basin', 30.5, 170.2, 0, true], ['Rembrandt Crater', -33.2, 87.7, 0], ['Hokusai Crater', 57.8, 16.8, 0], ['MESSENGER impact', 54.4, -149.9, 0]],
+  venus: [['Maxwell Montes', 65.2, 3.3, 11000, true], ['Venera 13', -7.5, -56.5, 0], ['Venera 14', -13.25, -49.8, 0], ['Aphrodite Terra', -5.8, 104.8, 3000, true], ['Ishtar Terra', 70.4, 27.5, 4000], ['Sapas Mons', 8.5, -171.7, 4500]],
+  io: [['Loki Patera', 13, 51, 0, true], ['Pele', -18.7, 104.7, 0], ['Prometheus', -1.5, 153.9, 0], ['Tvashtar', 63, -124, 0]],
+  europa: [['Conamara Chaos', 9.7, 86.4, 0, true], ['Pwyll Crater', -25.2, 88.6, 0], ['Thera Macula', -47, 178, 0]],
+  ganymede: [['Galileo Regio', 35, -145, 0, true], ['Tros Crater', 11, -28, 0]],
+  callisto: [['Valhalla Basin', 14.7, -56, 0, true], ['Asgard Basin', 32.2, 140, 0]],
+  titan: [['Huygens landing site', -10.25, 167.67, 0, true], ['Kraken Mare', 68, 50, 0, true], ['Ligeia Mare', 79, 112, 0], ['Xanadu', -10, 100, 0]],
+  enceladus: [['Tiger Stripes', -85, 0, 0, true], ['Damascus Sulcus', -80, 30, 0]],
+  mimas: [['Herschel Crater', -1, -112, 0, true]],
+  tethys: [['Odysseus Crater', 30, -130, 0, true], ['Ithaca Chasma', 0, 20, 0]],
+  iapetus: [['Equatorial Ridge', 0, 0, 13000, true], ['Cassini Regio', 0, 90, 0]],
+  miranda: [['Verona Rupes', -18.3, -12.1, 0, true], ['Inverness Corona', -66, 0, 0]],
+  triton: [['South Polar Cap', -60, 0, 0, true], ['Cantaloupe Terrain', 20, -30, 0]],
+  pluto: [['Sputnik Planitia', 25, 175, 0, true], ['Wright Mons', -21, 173, 4000], ['Cthulhu Macula', -5, -90, 0]],
+  charon: [['Mordor Macula', 85, 0, 0, true], ['Serenity Chasma', 0, 30, 0]],
+  phobos: [['Stickney Crater', 1, -49, 0, true]],
+};
+for (const b of BODIES) {
+  const list = PLACES[b.id];
+  if (!list) continue;
+  b.features = [...(b.features || []), ...list.map(([name, lat, lon, height, major]) => ({ name, lat, lon, height, major: !!major }))];
 }

@@ -44,8 +44,8 @@ or major moon, land on solid worlds and walk around in a spacesuit.
     universe, planets included, races ahead.
   - **Echoes.** Light that looped around the black hole shows where you were seconds ago.
     Look back and you will see faint copies of your own ship.
-- **Earth is off-limits.** A defence grid 600 km up bounces you off. The Moon is fully
-  landable, with the six Apollo landing sites where they really are.
+- **Earth is open.** Land anywhere (oceans are a flat sea surface), step out and breathe.
+  The Moon is fully landable too, with the six Apollo landing sites where they really are.
 
 ## Proxima b: the far side of the black hole
 
@@ -181,6 +181,6 @@ node --import ./tests/loader.mjs tests/terrain.test.mjs
 The tests cover:
 - hovering, free fall and orbits;
 - autopilot trips (Earth to Moon ≈ 21 s, Earth to Neptune ≈ 46 s);
-- the Earth barrier, auto-landing, sinking at Jupiter, and burning up near the Sun;
+- landing on Earth, auto-landing, sinking at Jupiter, and burning up near the Sun;
 - that the terrain mesh sits exactly on the physics height function;
 - jump height under lunar gravity.
