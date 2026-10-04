@@ -11,7 +11,8 @@
 //   atmosphere; dynamic pressure shakes and can break the ship.
 // * Pulse drive: faster than light, its speed proportional to your distance
 //   from the nearest surface, so you can cross the system in under a minute
-//   and still never ram a planet. It cuts out inside gravity wells/atmospheres.
+//   and still never ram a planet. It works in atmospheres too, down to 2 km
+//   above the ground (the Sun keeps you 0.02 AU away).
 // * Cruise engines: away from planets the main engines spool up
 //   exponentially, so holding W takes you from rest to the 0.9 c ceiling in
 //   about 20 s (14 s with boost). Near a surface (or the top of an atmosphere)
@@ -61,6 +62,7 @@ export const SHIP = {
   pulseK: 0.75,         // pulse speed per metre of clearance (1/s)
   pulseMax: 2400 * C_LIGHT,
   pulseSpool: 1.2,      // s
+  pulseFloor: 2000,     // m above the ground: lowest the pulse drive runs
 };
 
 const _v = new THREE.Vector3();
@@ -249,12 +251,28 @@ export class ShipSim {
   // ---- Pulse drive & autopilot ------------------------------------------------------------
   canPulse() {
     if (this.mode === 'landed' || this.mode === 'destroyed') return { ok: false, why: 'Take off first' };
-    const t = this.telemetry;
-    const body = this.parent;
-    const atm = body.atmosphere;
-    if (atm && t.altitude < atm.top * 1.2) return { ok: false, why: 'Pulse drive unavailable inside an atmosphere' };
-    if (t.altitude < this.interdictionAltitude(body)) return { ok: false, why: 'Too deep in the gravity well: climb higher' };
+    const wp = this.worldPos(new THREE.Vector3());
+    const near = this.pulseClearance(wp);
+    if (near.distance < this.pulseFloor(near.body)) {
+      return { ok: false, why: near.body === this.eph.sun ? 'Too close to the Sun' : `Climb above ${(SHIP.pulseFloor / 1000).toFixed(0)} km first` };
+    }
     return { ok: true };
+  }
+
+  /** Lowest clearance the pulse drive runs at: 2 km above ground, 0.02 AU from the Sun. */
+  pulseFloor(body) {
+    return body === this.eph.sun ? 0.02 * AU : SHIP.pulseFloor;
+  }
+
+  /**
+   * Clearance for the pulse drive: the nearest surface, using the real ground
+   * (terrain included) under the ship for the body you are over.
+   */
+  pulseClearance(worldPos) {
+    const near = this.nearestSurface(worldPos);
+    const ground = this.surfaceInfo(this.parent, worldPos.clone().sub(this.parent.pos)).ground;
+    if (ground < near.distance) return { body: this.parent, distance: ground };
+    return near;
   }
 
   interdictionAltitude(body) {
@@ -280,12 +298,13 @@ export class ShipSim {
     this.spool = 0;
     if (!wasPulsing) return;
     this.mode = 'flight';
-    // Drop out at rest relative to whatever dominates here.
+    // Drop out at rest relative to whatever dominates here (moving with the
+    // ground when low over a world, so there's no sudden wind).
     const wp = this.worldPos(new THREE.Vector3());
     const dom = this.eph.dominantBody(wp);
     this.parent = dom;
     this.rel.copy(wp).sub(dom.pos);
-    this.vel.set(0, 0, 0);
+    dom.surfaceVelocity(this.rel, this.vel).multiplyScalar(this.coRotation(this.surfaceInfo(dom, this.rel).altitude, dom));
     this.pulseSpeed = 0;
     this.events.push({ type: 'pulse-exit', reason, body: dom });
   }
@@ -632,7 +651,7 @@ export class ShipSim {
 
   updatePulse(dt) {
     const wp = this.worldPos(new THREE.Vector3());
-    const near = this.nearestSurface(wp);
+    const near = this.pulseClearance(wp);
     let vTarget = Math.min(SHIP.pulseMax, SHIP.pulseK * Math.max(near.distance, 0));
     const ap = this.autopilot;
     let aim = null;
@@ -649,9 +668,9 @@ export class ShipSim {
         return;
       }
     }
-    // Gravity-well interdiction: drop out before the speed collapses near a surface.
+    // Drop out before the speed collapses near a surface.
     const nb = near.body;
-    if (nb && near.distance < this.interdictionAltitude(nb) * 1.05) {
+    if (nb && near.distance < this.pulseFloor(nb) * 0.95) {
       this.exitPulse('interdicted');
       return;
     }

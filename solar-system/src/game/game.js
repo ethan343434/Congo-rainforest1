@@ -721,7 +721,7 @@ export class Game {
         case 'pulse-start': this.audio.play('pulse-start'); break;
         case 'pulse-exit':
           this.audio.play('pulse-exit');
-          if (e.reason === 'interdicted') this.hud.toast('Pulse drive disengaged', `${e.body.name}’s gravity well pulled you out of pulse.`, 'warn', 4);
+          if (e.reason === 'interdicted') this.hud.toast('Pulse drive disengaged', e.body.id === 'sun' ? 'Too close to the Sun for the pulse drive.' : `Dropped out ${(SHIP.pulseFloor / 1000).toFixed(0)} km above ${e.body.name}’s surface.`, 'warn', 4);
           break;
         case 'autopilot': this.hud.toast('Autopilot', `Course laid in for ${e.target.name}.`, '', 4); this.audio.play('blip'); break;
         case 'autopilot-off': this.hud.toast('Autopilot off', 'Manual control.', '', 3); break;

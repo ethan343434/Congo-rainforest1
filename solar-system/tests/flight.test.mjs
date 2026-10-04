@@ -274,6 +274,23 @@ for (const id of ['moon', 'phobos']) {
   check(`Without the planet slowdown a 0.9 c dive hits ${m.name} instead of passing through`, hit?.body === m, hit ? `crash at ${(hit.speed / C_LIGHT).toFixed(2)} c` : 'passed through');
 }
 
+// 14. Pulse drive inside an atmosphere: starts 50 km up in Mars' air, and a dive drops out safely above the ground.
+{
+  const c = setup('mars', 50e3);
+  const ok = c.ship.canPulse().ok;
+  c.ship.lookAt(c.b.pos);
+  c.ship.togglePulse();
+  let out = null;
+  run(c, 30, 1 / 60, () => {
+    const ev = c.ship.events.find((e) => e.type === 'pulse-exit' || e.type === 'crash');
+    c.ship.events.length = 0;
+    if (ev) { out = ev; return false; }
+  });
+  const g = c.ship.telemetry.ground;
+  check('Pulse drive works inside Mars\' atmosphere', ok, '50 km up');
+  check('…and a pulse dive at the ground drops out safely above it', out?.type === 'pulse-exit' && g > 1500 && c.ship.telemetry.surfaceSpeed < 1, `${out?.type} at ${(g / 1000).toFixed(1)} km, ${c.ship.telemetry.surfaceSpeed.toFixed(1)} m/s over the ground`);
+}
+
 console.log(results.join('\n'));
 console.log(failures ? `\n${failures} failure(s)` : '\nAll flight tests passed.');
 process.exit(failures ? 1 : 0);
