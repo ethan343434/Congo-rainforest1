@@ -36,6 +36,7 @@ import { AudioEngine } from '../audio/audio.js';
 import { ProximaLife } from './proximaLife.js';
 import { Devourer, DEVOURER_DEF } from './devourer.js';
 import { SunDeath } from './sunDeath.js';
+import { PlanetBuster } from './planetBuster.js';
 
 const $ = (id) => document.getElementById(id);
 const PHYS_STEP = 1 / 120;
@@ -156,6 +157,7 @@ export class Game {
     this.lastTime = performance.now();
     this.devourer = new Devourer(this);
     this.sunDeath = new SunDeath(this);
+    this.buster = new PlanetBuster(this);
     this.bindUI();
     this.frame = this.frame.bind(this);
     requestAnimationFrame(this.frame);
@@ -358,6 +360,7 @@ export class Game {
     if (this.life) { this.life.dispose(); this.life = null; }
     this.devourer.reset();
     this.sunDeath.reset();
+    this.buster.reset();
     this.lightsOn = false;
     this.respawn();
     this.state = 'play';
@@ -591,6 +594,7 @@ export class Game {
       this.updateSystems(dt);
       this.devourer.updateDanger(dt);
       this.sunDeath.updateDanger();
+      this.buster.update(dt); // the world-killer beam
     }
     this.updateCamera(dt);
     this.updateTerrain(dt);
@@ -651,6 +655,7 @@ export class Game {
         case 'KeyI': this.toggleScanner(); break;
         case 'KeyM': this.audio.setMuted(!this.audio.muted); this.hud.toast('Sound', this.audio.muted ? 'Muted' : 'On', '', 2); break;
         case 'KeyF': this.toggleLights(); break;
+        case 'KeyB': this.buster.fire(); break;
         case 'KeyO': this.showFps = !this.showFps; break;
         case 'Tab':
           this.keysHidden = !this.keysHidden;
@@ -1411,6 +1416,7 @@ export class Game {
     });
     this.explosion.update(dt, origin);
     this.devourer.render(origin, this.clock);
+    this.buster.render(origin, this.clock, dt);
   }
 
   // ---- HUD -------------------------------------------------------------------------------------
@@ -1628,6 +1634,7 @@ export class Game {
       [['X'], 'Brake to a stop', flying],
       [['T', '0–9'], 'Choose a target', true],
       [['K'], hasTarget ? `Warp to ${this.target.name}` : 'Warp drive (needs a target)', hasTarget && !landed, false],
+      [['B'], hasTarget ? `World-killer beam at ${this.target.name}` : 'World-killer beam (nearest world)', true, false],
       [['G'], ship.autopilot ? 'Cancel autopilot' : 'Autopilot to the target', hasTarget && !landed],
       [['J'], ship.mode === 'pulse' ? 'Leave pulse drive' : 'Pulse drive (faster than light)', flying || landed],
       [['L'], 'Auto-land', !!lowSlow, !!lowSlow],

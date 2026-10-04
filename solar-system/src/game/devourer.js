@@ -214,7 +214,7 @@ export class Devourer {
       const b = this.eph.byId[s.id];
       if (!b) continue;
       const eatStart = s.start + s.travel;
-      b.eaten = clock >= s.end || !!b.engulfed; // (the Sun's death can engulf it too)
+      b.eaten = clock >= s.end || !!b.engulfed || !!b.destroyed; // (the Sun's death or the beam can take it too)
       b.eatScale = b.eaten ? 0 : clock > eatStart ? 1 - smooth((clock - eatStart) / s.eat) : 1;
     }
     this.here = false;

@@ -32,6 +32,7 @@ const CHIPS = [
   ['land', 'LAND', 'KeyL', false, (c) => !c.foot && c.flying && !c.pulse && c.lowOverGround],
   ['auto', 'AUTOPILOT', 'KeyG', false, (c) => !c.foot && (c.flying || c.landed)],
   ['warp', 'WARP', 'KeyK', false, (c) => !c.foot && c.flying],
+  ['beam', 'BEAM', 'KeyB', false, (c) => !c.foot],
   ['pulse', 'PULSE', 'KeyJ', false, (c) => !c.foot && (c.flying || c.landed)],
   ['target', 'TARGET', 'KeyT', false, (c) => !c.foot],
   ['assist', 'ASSIST', 'KeyZ', false, (c) => !c.foot && c.flying],
