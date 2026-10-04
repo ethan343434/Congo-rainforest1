@@ -89,6 +89,7 @@ export class ShipSim {
     this.spool = 0;                 // pulse spool-up progress (s)
     this.cruise = 0;                // cruise-engine spool (s)
     this.approachLimit = true;      // slow down near planets (the game can switch it off)
+    this.heatImmune = false;        // heat can't hurt the hull, so entries are limited by pressure only
     this.input = { thrust: 0, lift: 0, strafe: 0, pitch: 0, yaw: 0, roll: 0, boost: false, brake: false };
     this.telemetry = {
       altitude: Infinity, ground: Infinity, vSpeed: 0, speed: 0, density: 0, pressure: 0, temperature: null,
@@ -513,7 +514,7 @@ export class ShipSim {
     this.telemetry.entryLimited = false;
     if (density > 0 && (assist || this.autopilot)) {
       const vSafe = Math.min(
-        Math.cbrt(SHIP.safeHeatFlux / entryHeating(density, 1)),
+        this.heatImmune ? Infinity : Math.cbrt(SHIP.safeHeatFlux / entryHeating(density, 1)),
         Math.sqrt((2 * SHIP.safeDynPressure) / density),
       );
       const vAir = _w.copy(this.vel).sub(vSurf);

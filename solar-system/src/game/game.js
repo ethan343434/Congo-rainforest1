@@ -225,6 +225,20 @@ export class Game {
       try { localStorage.setItem('solv-approach-limit', this.ship.approachLimit ? 'on' : 'off'); } catch (e) { /* not saved */ }
       showLimit();
     });
+    // Test switch: heat damage (off by default for now). The hull still heats
+    // up and glows, but entries, the Sun and hot air can't hurt it.
+    let heat = false;
+    try { heat = localStorage.getItem('solv-heat-damage') === 'on'; } catch (e) { /* default */ }
+    const setHeat = (on) => { this.systems.heatImmune = !on; this.ship.heatImmune = !on; };
+    setHeat(heat);
+    const hb = $('heat-btn');
+    const showHeat = () => { hb.textContent = `Heat damage: ${this.systems.heatImmune ? 'off' : 'on'}`; };
+    showHeat();
+    hb.addEventListener('click', () => {
+      setHeat(this.systems.heatImmune);
+      try { localStorage.setItem('solv-heat-damage', this.systems.heatImmune ? 'off' : 'on'); } catch (e) { /* not saved */ }
+      showHeat();
+    });
     // Reset from the pause menu asks for a second click.
     const pr = $('pause-reset-btn');
     pr.addEventListener('click', () => {

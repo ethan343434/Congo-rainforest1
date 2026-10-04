@@ -68,5 +68,17 @@ check('Seconds to live on foot on Venus', venusFoot < 10, `${venusFoot.toFixed(1
 const io = suitTime({ temp: 130, pressure: 0, radiation: 1.5, breathable: false });
 check('Io’s radiation kills within a few minutes', io < 300, `${io.toFixed(0)} s`);
 
+// Heat damage switched off: entry heating, the Sun's heat and hot air leave the hull intact.
+{
+  const sys = new ShipSystems();
+  sys.heatImmune = true;
+  for (let i = 0; i < 600; i++) sys.update({ dt: 0.1, now: i * 0.1, solarFlux: 5e6, heatFlux: 5e6, dynPressure: 0, pressure: 0, airTemp: 1500, airDensity: 1, radiation: 0, ringHazard: 0 });
+  sys.update({ dt: 0.1, now: 61, insideSun: true, solarFlux: 0, heatFlux: 0, dynPressure: 0, pressure: 0, radiation: 0, ringHazard: 0 });
+  check('With heat damage off the hull survives any heating', !sys.destroyed && sys.hull === 100, `hull ${sys.hull.toFixed(0)}%, ${Math.round(sys.hullTemp)} K`);
+  const hot = new ShipSystems();
+  for (let i = 0; i < 600 && !hot.destroyed; i++) hot.update({ dt: 0.1, now: i * 0.1, solarFlux: 0, heatFlux: 5e6, dynPressure: 0, pressure: 0, radiation: 0, ringHazard: 0 });
+  check('…and with it on, the same heating burns the ship up', hot.destroyed, hot.cause);
+}
+
 console.log(failed ? `\n${failed} hazard test(s) failed.` : '\nAll hazard tests passed.');
 process.exit(failed ? 1 : 0);

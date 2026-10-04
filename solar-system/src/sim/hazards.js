@@ -26,7 +26,10 @@ export const HULL_LIMITS = {
 };
 
 export class ShipSystems {
-  constructor() { this.reset(); }
+  constructor() {
+    this.heatImmune = false; // test switch: heat never damages the hull
+    this.reset();
+  }
 
   reset() {
     this.hull = 100;
@@ -62,7 +65,7 @@ export class ShipSystems {
     const { dt, now } = env;
     const w = [];
     if (this.destroyed) return w;
-    if (env.insideSun) {
+    if (env.insideSun && !this.heatImmune) {
       this.destroy('Vaporized in the Sun’s photosphere (5,500 °C).');
       return w;
     }
@@ -79,20 +82,22 @@ export class ShipSystems {
     this.hullTemp += ((qIn - qOut) / HEAT_CAPACITY) * dt;
     this.hullTemp = Math.max(3, this.hullTemp);
     const T = this.hullTemp;
-    if (T > HULL_LIMITS.meltTemp) {
+    if (this.heatImmune) {
+      // Test switch: hot but harmless.
+      if (T > HULL_LIMITS.damageTemp) w.push({ level: 'caution', text: `Hull ${Math.round(T - KELVIN).toLocaleString('en-US')} °C · heat damage off` });
+    } else if (T > HULL_LIMITS.meltTemp) {
       this.destroy(heat > solar * SHIP_ABSORPTIVITY
         ? 'Burned up: entry heating melted the hull.'
         : 'Burned up: the Sun’s heat melted the hull.');
       return w;
-    }
-    if (T > HULL_LIMITS.damageTemp) {
+    } else if (T > HULL_LIMITS.damageTemp) {
       const x = (T - HULL_LIMITS.damageTemp) / 200;
       this.damage(dt * (1.5 + 6 * x * x), heat > solar ? 'entry heating' : 'solar heating', now);
       w.push({ level: 'danger', text: `Hull temperature critical: ${Math.round(T - KELVIN).toLocaleString('en-US')} °C` });
     } else if (T > HULL_LIMITS.damageTemp - 250) {
       w.push({ level: 'caution', text: `Hull heating: ${Math.round(T - KELVIN).toLocaleString('en-US')} °C` });
     }
-    if (env.airTemp && env.airTemp > HULL_LIMITS.coolingLimit) {
+    if (env.airTemp && env.airTemp > HULL_LIMITS.coolingLimit && !this.heatImmune) {
       this.damage(dt * 0.18 * (env.airTemp / HULL_LIMITS.coolingLimit), 'cooling overload', now);
       w.push({ level: 'caution', text: `Cooling overwhelmed: outside ${Math.round(env.airTemp - KELVIN)} °C` });
     }
