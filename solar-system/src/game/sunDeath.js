@@ -141,7 +141,11 @@ export class SunDeath {
       }
     }
     if (pluto?.engulfed) { pluto.eaten = true; if (charon) charon.eaten = true; }
-    this.checkDanger();
+  }
+
+  /** Warnings and death, after the ship has moved (the HUD's warning list is rebuilt before this). */
+  updateDanger() {
+    if (this.on && this.sysId === 'sol') this.checkDanger();
   }
 
   updateProxima() {

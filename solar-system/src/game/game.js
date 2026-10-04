@@ -590,6 +590,7 @@ export class Game {
       this.processEvents();
       this.updateSystems(dt);
       this.devourer.updateDanger(dt);
+      this.sunDeath.updateDanger();
     }
     this.updateCamera(dt);
     this.updateTerrain(dt);
