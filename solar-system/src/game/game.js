@@ -212,6 +212,19 @@ export class Game {
     $('respawn-btn').addEventListener('click', () => this.respawnAfterDeath());
     $('respawn-btn').textContent = this.sys.respawnLabel;
     $('reset-btn').addEventListener('click', () => this.resetGame());
+    // Test switch: the cruise engines' slow-down near planets (off by default
+    // for now). Without it the ship can hit a world at up to 0.9 c.
+    let limit = false;
+    try { limit = localStorage.getItem('solv-approach-limit') === 'on'; } catch (e) { /* default */ }
+    this.ship.approachLimit = limit;
+    const lb = $('limit-btn');
+    const showLimit = () => { lb.textContent = `Planet slowdown: ${this.ship.approachLimit ? 'on' : 'off'}`; };
+    showLimit();
+    lb.addEventListener('click', () => {
+      this.ship.approachLimit = !this.ship.approachLimit;
+      try { localStorage.setItem('solv-approach-limit', this.ship.approachLimit ? 'on' : 'off'); } catch (e) { /* not saved */ }
+      showLimit();
+    });
     // Reset from the pause menu asks for a second click.
     const pr = $('pause-reset-btn');
     pr.addEventListener('click', () => {

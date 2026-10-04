@@ -254,6 +254,22 @@ for (const [from, to, maxTime] of [['earth', 'moon', 40], ['earth', 'mars', 90],
   check('…and without flight assist the entry burns the ship up', /heating|Burned/.test(without), without);
 }
 
+// 13. Planet slowdown switched off: a 0.9 c dive still hits the Moon (and Phobos), never passes through.
+for (const id of ['moon', 'phobos']) {
+  const c = setup(id, 5e5, { fa: false });
+  const m = c.b;
+  c.ship.approachLimit = false;
+  const dir = c.ship.rel.clone().normalize();
+  c.ship.setParent(c.eph.dominantBody(c.ship.worldPos()));
+  c.ship.vel.copy(dir).multiplyScalar(-0.9 * C_LIGHT).add(m.vel).sub(c.ship.parent.vel);
+  let hit = null;
+  run(c, 2, 1 / 20, () => {
+    hit = c.ship.events.find((e) => e.type === 'crash');
+    return !hit;
+  });
+  check(`Without the planet slowdown a 0.9 c dive hits ${m.name} instead of passing through`, hit?.body === m, hit ? `crash at ${(hit.speed / C_LIGHT).toFixed(2)} c` : 'passed through');
+}
+
 console.log(results.join('\n'));
 console.log(failures ? `\n${failures} failure(s)` : '\nAll flight tests passed.');
 process.exit(failures ? 1 : 0);

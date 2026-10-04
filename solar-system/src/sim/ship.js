@@ -88,6 +88,7 @@ export class ShipSim {
     this.pulseSpeed = 0;
     this.spool = 0;                 // pulse spool-up progress (s)
     this.cruise = 0;                // cruise-engine spool (s)
+    this.approachLimit = true;      // slow down near planets (the game can switch it off)
     this.input = { thrust: 0, lift: 0, strafe: 0, pitch: 0, yaw: 0, roll: 0, boost: false, brake: false };
     this.telemetry = {
       altitude: Infinity, ground: Infinity, vSpeed: 0, speed: 0, density: 0, pressure: 0, temperature: null,
@@ -188,6 +189,39 @@ export class ShipSim {
       if (limit < env.limit) { env.limit = limit; env.body = b; }
     }
     return env;
+  }
+
+  /**
+   * Fast enough to cross a world in one step: find the first solid world
+   * whose sphere (below its deepest basins) this step's path enters, and stop
+   * there with the velocity unchanged so the impact registers. Returns
+   * 'parent' for the body you are over (its contact check runs as usual),
+   * 'other' after handling an impact on another world, or false.
+   */
+  sweepToSurface(body, dt) {
+    const v = _v.copy(this.vel).multiplyScalar(dt);
+    const step = v.length();
+    if (step < 1000) return false; // under 1 km per step: the contact check is enough
+    let hit = null, first = 1;
+    const p = new THREE.Vector3(), vb = new THREE.Vector3();
+    for (const b of this.eph.bodies) {
+      if (b.def.terrain === undefined) continue;
+      p.copy(this.rel).add(body.pos).sub(b.pos);           // relative to b
+      if (p.length() - b.radius > step * 1.5) continue;     // out of reach this step
+      vb.copy(this.vel).add(body.vel).sub(b.vel).multiplyScalar(dt);
+      const R = b.radius * 0.985;
+      const A = vb.lengthSq(), B = 2 * p.dot(vb), C = p.lengthSq() - R * R;
+      const disc = B * B - 4 * A * C;
+      if (C <= 0 || disc < 0 || A === 0) continue;
+      const sHit = (-B - Math.sqrt(disc)) / (2 * A);
+      if (sHit >= 0 && sHit <= first) { first = sHit; hit = b; }
+    }
+    if (!hit) return false;
+    this.rel.addScaledVector(v, first);
+    if (hit === body) return 'parent';
+    this.setParent(hit);
+    this.handleContact(this.surfaceInfo(hit, this.rel), hit, hit.surfaceVelocity(this.rel, new THREE.Vector3()));
+    return 'other';
   }
 
   /** Auto-land works from orbit: anywhere within a few radii of solid ground. */
@@ -459,7 +493,7 @@ export class ShipSim {
     // Speed limit: 0.9 c, and proportional to clearance near planets (never
     // below what gravity alone could produce).
     this.telemetry.speedLimited = false;
-    if (env.body) {
+    if (env.body && this.approachLimit) {
       // Speed relative to the limiting body; for the body you are over, relative
       // to its turning surface (Mars' ground moves at 240 m/s).
       const lb = env.body;
@@ -490,7 +524,11 @@ export class ShipSim {
       }
     }
     this.telemetry.cruise = mult;
-    this.rel.addScaledVector(this.vel, dt);
+    // Fast enough to cross a world in one step (no approach limit): stop at
+    // its surface so the crash registers instead of passing through.
+    const swept = this.sweepToSurface(body, dt);
+    if (swept === 'other') { this.telemetry.density = density; return; } // hit a moon: handled there
+    if (!swept) this.rel.addScaledVector(this.vel, dt);
 
     // Earth's defence barrier.
     const bar = body.def.barrier;
