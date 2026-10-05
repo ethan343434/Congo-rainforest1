@@ -1,6 +1,7 @@
 // Terrain + on-foot checks (run: node --import ./tests/loader.mjs tests/terrain.test.mjs)
 import * as THREE from 'three';
 import { BODIES } from '../src/data/bodies.js';
+import { PROXIMA_BODIES } from '../src/data/proxima.js';
 import { createHeightfield } from '../src/terrain/heightfield.js';
 import { buildChunk, buildIndices, faceDir, dirToFace, tileEdge, GRID } from '../src/terrain/chunkBuilder.js';
 import { Walker, WALK } from '../src/sim/walker.js';
@@ -100,6 +101,36 @@ w.input.jump = true; w.update(1 / 60, suit); w.input.jump = false; w.input.jet =
 for (let i = 0; i < 60; i++) w.update(1 / 60, suit);
 w.input.jet = false;
 check('Jetpack climbs and burns fuel', w.pos.length() - R > 2 && suit.jetpack < 100, `${(w.pos.length() - R).toFixed(1)} m up, fuel ${suit.jetpack.toFixed(0)}%`);
+
+// ---- Running and sprinting feel the same on every walkable world ---------------------------------
+// Real terrain (procedural part; heightmap images are not loaded here), from Phobos to Earth.
+const allDefs = [...BODIES, ...PROXIMA_BODIES];
+for (const id of ['earth', 'mars', 'moon', 'mercury', 'venus', 'io', 'titan', 'pluto', 'phobos', 'proxb', 'proxd']) {
+  const d = allDefs.find((x) => x.id === id);
+  if (!d?.terrain) continue;
+  const Rw = d.radius;
+  const field = createHeightfield({ id, radius: Rw, gravity: d.GM / Rw ** 2, terrain: d.terrain, heightmap: null });
+  const ground = { surfaceRadius: (v) => Rw + field.height(v.x, v.y, v.z, 0.5) };
+  const bw = { GM: d.GM, quat: new THREE.Quaternion(), quatInv: new THREE.Quaternion(), pos: new THREE.Vector3(), surfaceRadiusLocal: () => Rw };
+  const wk = new Walker();
+  wk.spawn(bw, ground, new THREE.Vector3(0.3, 0.2, 0.93).normalize().multiplyScalar(Rw), null);
+  wk.cameraForward.set(0, 1, 0);
+  const st = { jetpack: 100 };
+  wk.input.forward = 1;
+  for (let i = 0; i < 90; i++) wk.update(1 / 60, st);
+  const runV = wk.speed;
+  wk.input.run = true;
+  let top = 0, sum = 0, n = 0, grounded = 0;
+  for (let i = 0; i < 480; i++) {
+    wk.update(1 / 60, st);
+    top = Math.max(top, wk.speed);
+    if (i >= 300) { sum += wk.speed; n++; if (wk.onGround) grounded++; }
+  }
+  const avg = sum / n;
+  check(`${d.name}: run ${WALK.run} m/s, sprint to 60 mph`,
+    Math.abs(runV - WALK.run) < 0.3 && avg > WALK.sprint * 0.9 && top < WALK.sprint + 1,
+    `run ${runV.toFixed(2)} m/s, sprint ${(avg * 2.23694).toFixed(1)} mph (top ${(top * 2.23694).toFixed(1)}), feet down ${Math.round((grounded / n) * 100)}% of the time`);
+}
 
 console.log(failed ? `\n${failed} terrain test(s) failed.` : '\nAll terrain tests passed.');
 process.exit(failed ? 1 : 0);
