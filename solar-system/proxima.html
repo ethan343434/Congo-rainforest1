@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Proxima b</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Libraries are vendored so the game also runs offline. -->
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js", "astronomy-engine": "./vendor/astronomy.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="markers" aria-hidden="true"></div>
+
+  <!-- ============================== HUD ============================== -->
+  <div id="hud" hidden>
+    <aside id="nav" aria-label="Navigation compass">
+      <header>
+        <span class="eyebrow">NAV · compass</span>
+        <span id="nav-frame" class="frame"></span>
+      </header>
+      <ol id="nav-list"></ol>
+      <footer><kbd>T</kbd> next target · click to select</footer>
+    </aside>
+
+    <div id="clock" hidden></div>
+    <div id="heading-tape" hidden><div id="heading-strip"></div><div id="heading-needle"></div></div>
+    <div id="warning" role="alert" hidden></div>
+    <div id="crosshair"><div id="stick" hidden></div></div>
+    <div id="aim-label" hidden></div>
+    <div id="prograde" hidden></div>
+    <div id="retrograde" hidden></div>
+    <div id="target-arrow" hidden></div>
+
+    <section id="flight" aria-label="Flight data">
+      <div class="readout big"><span class="label">SPEED</span><span id="r-speed">0 m/s</span></div>
+      <div class="readout"><span class="label">MODE</span><span id="r-mode">THRUST</span></div>
+      <div class="readout" id="row-alt"><span class="label">ALTITUDE</span><span id="r-alt">—</span></div>
+      <div class="readout" id="row-vs"><span class="label">VERT SPEED</span><span id="r-vs">—</span></div>
+      <div class="readout"><span class="label">GRAVITY</span><span id="r-g">—</span></div>
+      <div class="readout"><span class="label">NEAREST</span><span id="r-body">—</span></div>
+      <div class="assist"><span id="r-fa">FLIGHT ASSIST ON</span></div>
+    </section>
+
+    <section id="status" aria-label="Ship and suit status">
+      <div class="gauge" id="g-hull"><span class="label">HULL</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <div class="gauge" id="g-heat"><span class="label">HULL TEMP</span><div class="bar"><i></i></div><span class="val">20 °C</span></div>
+      <div class="gauge suit" id="g-health" hidden><span class="label">HEALTH</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <div class="gauge suit" id="g-life" hidden><span class="label">LIFE SUPPORT</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <div class="gauge suit" id="g-hazard" hidden><span class="label">HAZARD PROT.</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <div class="gauge" id="g-jet" hidden><span class="label">JETPACK</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <div class="gauge" id="g-laser" hidden><span class="label">LASER</span><div class="bar"><i></i></div><span class="val">100%</span></div>
+      <dl id="env">
+        <div><dt>OUTSIDE</dt><dd id="e-temp">—</dd></div>
+        <div><dt>PRESSURE</dt><dd id="e-press">vacuum</dd></div>
+        <div><dt>RADIATION</dt><dd id="e-rad">—</dd></div>
+        <div><dt>SUNLIGHT</dt><dd id="e-sun">—</dd></div>
+      </dl>
+    </section>
+
+    <section id="target" aria-label="Target">
+      <span class="eyebrow">TARGET</span>
+      <strong id="t-name">—</strong>
+      <span id="t-dist">—</span>
+      <span id="t-eta"></span>
+      <span id="t-rating" class="rating"></span>
+      <span class="hint"><kbd>K</kbd> warp · <kbd>G</kbd> autopilot · <kbd>I</kbd> scan</span>
+    </section>
+
+    <aside id="keys" aria-label="Controls">
+      <header><span class="eyebrow">CONTROLS</span><span class="mode" id="keys-mode">SHIP</span></header>
+      <ul id="keys-list"></ul>
+      <footer><kbd>Tab</kbd> hide · <kbd>H</kbd> full help</footer>
+    </aside>
+    <div id="keys-tab" hidden><kbd>Tab</kbd> controls</div>
+
+    <div id="prompt" hidden></div>
+    <div id="toasts"></div>
+    <div id="fps" hidden></div>
+  </div>
+
+  <!-- Planet info / scanner -->
+  <div id="info" class="panel-overlay" hidden>
+    <article id="info-card"></article>
+  </div>
+
+  <!-- Help -->
+  <div id="help" class="panel-overlay" hidden>
+    <article class="card">
+      <h2>Flight controls</h2>
+      <div class="cols">
+        <dl>
+          <dt>Mouse</dt><dd>Steer (click the view to capture the mouse)</dd>
+          <dt><kbd>W</kbd> / <kbd>S</kbd></dt><dd>Thrust forward / reverse. Hold in open space and the engines spool up to 0.9 c</dd>
+          <dt><kbd>A</kbd> / <kbd>D</kbd></dt><dd>Roll</dd>
+          <dt><kbd>Space</kbd> / <kbd>C</kbd></dt><dd>Thrust up / down</dd>
+          <dt><kbd>Shift</kbd></dt><dd>Boost</dd>
+          <dt><kbd>J</kbd></dt><dd>Pulse drive on / off (faster than light)</dd>
+          <dt><kbd>K</kbd></dt><dd>Warp drive: jump straight to the target</dd>
+          <dt><kbd>B</kbd></dt><dd>World-killer beam: melts the target (or nearest world) and blows it up 10 s later</dd>
+          <dt><kbd>N</kbd></dt><dd>Black hole gun: swallows the target (or nearest world) and its moons, and sends them to Alpha Centauri</dd>
+          <dt><kbd>U</kbd></dt><dd>White hole gun: throws a swallowed world at your target (or straight ahead) to crash it</dd>
+          <dt><kbd>Y</kbd></dt><dd>Choose which swallowed world the white hole throws next</dd>
+          <dt><kbd>G</kbd></dt><dd>Autopilot to the selected target</dd>
+          <dt><kbd>T</kbd></dt><dd>Next target</dd>
+          <dt><kbd>Z</kbd></dt><dd>Flight assist on / off</dd>
+          <dt><kbd>X</kbd></dt><dd>Brake to a stop</dd>
+          <dt><kbd>L</kbd></dt><dd>Auto-land: flies you down from orbit to any solid world</dd>
+          <dt><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>Pitch and yaw without a mouse</dd>
+          <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd>Target the Sun, Mercury … Pluto</dd>
+        </dl>
+        <dl>
+          <dt><kbd>E</kbd></dt><dd>Get out of the ship (landed) / back in</dd>
+          <dt><kbd>WASD</kbd></dt><dd>Run (on foot): the same speed on every world</dd>
+          <dt><kbd>Space</kbd></dt><dd>Jump; hold in the air for the jetpack</dd>
+          <dt><kbd>C</kbd></dt><dd>Jetpack down (for tiny moons like Phobos)</dd>
+          <dt><kbd>Shift</kbd></dt><dd>Sprint on foot, up to 60 mph like a cheetah</dd>
+          <dt><kbd>F</kbd></dt><dd>Ship landing lights / helmet lamp</dd>
+          <dt><kbd>V</kbd></dt><dd>Camera: third person / cockpit</dd>
+          <dt><kbd>I</kbd></dt><dd>Scan target (facts &amp; survivability)</dd>
+          <dt><kbd>M</kbd></dt><dd>Mute</dd>
+          <dt><kbd>H</kbd></dt><dd>This help</dd>
+          <dt><kbd>O</kbd></dt><dd>Frame-rate counter</dd>
+          <dt><kbd>Tab</kbd></dt><dd>Show / hide the controls panel on the right</dd>
+          <dt><kbd>Esc</kbd></dt><dd>Pause</dd>
+        </dl>
+      </div>
+      <p class="note">Mouse wheel zooms the camera. The mouse pushes a virtual stick that slowly re-centres. The engines spool up to 0.9 c in open space and the pulse drive goes faster still; both slow themselves near planets. The pulse drive works anywhere, even straight off the ground: it skims over terrain and stops just above it if you dive in. At 0.9 c your clock runs 2.3× slower than the universe. With flight assist on, entries are held to a speed the hull survives (it still glows); with assist off (Z) you can burn up. Gravity is real everywhere: on Jupiter the hover thrusters lose and you need Shift to climb.</p>
+      <button type="button" class="btn" data-close="help">Close</button>
+    </article>
+  </div>
+
+  <!-- ============================== Screens ============================== -->
+  <div id="loading" class="screen visible">
+    <div class="title-block">
+      <h1>PROXIMA&nbsp;B</h1>
+      <p class="tagline">Crossing the event horizon…</p>
+      <div class="progress"><i id="load-bar"></i></div>
+      <p id="load-label" class="small">Loading star maps…</p>
+    </div>
+  </div>
+
+  <div id="menu" class="screen">
+    <div class="title-block">
+      <h1>PROXIMA&nbsp;B</h1>
+      <p class="tagline">You fell through the black hole and came out 4.24 light-years from home, above a world circling the red dwarf Proxima Centauri.</p>
+      <p id="menu-date" class="date"></p>
+      <ul class="brief">
+        <li>Proxima b always shows its star the same face: <b>scorched day side</b>, <b>frozen night side</b>, and a <b>twilight ring</b> of life between them.</li>
+        <li>The air is <b>breathable</b>. Land, step outside (<kbd>E</kbd>) and explore.</li>
+        <li>Find <b>supply crates</b>. They hold a <b>laser rifle</b> (left click to fire) and energy cells.</li>
+        <li>Grazers and sky jellies are <b>friendly</b>. Dune claws on the day side and night stalkers in the dark <b>are not</b>.</li>
+      </ul>
+      <button type="button" id="start-btn" class="btn primary">Step out of the black hole</button>
+      <p class="small"><kbd>H</kbd> controls · best with keyboard and mouse</p>
+      <p id="webgl-warning" class="small warn"></p>
+    </div>
+  </div>
+
+  <div id="pause" class="screen">
+    <div class="title-block">
+      <h2>Paused</h2>
+      <button type="button" id="resume-btn" class="btn primary">Resume</button>
+      <button type="button" class="btn" data-open="help">Controls</button>
+      <button type="button" class="btn" id="pause-reset-btn">Reset game</button>
+      <button type="button" class="btn" id="limit-btn">Planet slowdown: off</button>
+      <button type="button" class="btn" id="heat-btn">Heat damage: off</button>
+      <button type="button" class="btn" id="shield-btn">Suit shield: infinite</button>
+      <button type="button" class="btn" id="devourer-btn">Devourer: off</button>
+      <button type="button" class="btn" id="sundeath-btn">Sun’s death: off</button>
+      <button type="button" class="btn" id="flip-btn">Flip screen</button>
+      <button type="button" class="btn" id="home-btn" hidden>Return to the Solar System</button>
+      <p class="small" id="quality-label"></p>
+    </div>
+  </div>
+
+  <div id="dead" class="screen">
+    <div class="title-block">
+      <h2 id="dead-title">Ship destroyed</h2>
+      <p id="dead-cause" class="tagline"></p>
+      <p id="dead-stats" class="small"></p>
+      <button type="button" id="respawn-btn" class="btn primary">Respawn near Earth</button>
+      <button type="button" id="reset-btn" class="btn">Reset game</button>
+      <p class="small"><kbd>Enter</kbd> respawn · <kbd>R</kbd> reset game (universe clock back to now, progress cleared)</p>
+    </div>
+  </div>
+
+  <!-- Canopy frame for the cockpit camera -->
+  <div id="cockpit-frame" hidden aria-hidden="true"><svg viewBox="0 0 1600 900" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="dash" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1b2026" /><stop offset="1" stop-color="#07090c" />
+      </linearGradient>
+    </defs>
+    <path d="M0 900 L0 760 Q 800 700 1600 760 L1600 900 Z" fill="url(#dash)" />
+    <path d="M520 742 L1080 742" stroke="#2a8fb0" stroke-width="3" opacity="0.7" />
+    <path d="M140 900 Q 210 420 560 -10" stroke="#14181d" stroke-width="22" fill="none" />
+    <path d="M1460 900 Q 1390 420 1040 -10" stroke="#14181d" stroke-width="22" fill="none" />
+    <path d="M0 140 Q 800 40 1600 140" stroke="#14181d" stroke-width="14" fill="none" opacity="0.9" />
+  </svg></div>
+  <div id="warp-flash" aria-hidden="true"></div>
+  <div id="blackout" aria-hidden="true"></div>
+  <div id="void" aria-hidden="true"></div>
+  <div id="heat-vignette" aria-hidden="true"></div>
+  <div id="damage-flash" aria-hidden="true"></div>
+  <div id="fade"></div>
+
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('load-label').innerHTML =
+        'Opened as a file, so the browser blocks the game scripts. In this folder run <code>python -m http.server 8000</code> and open <code>http://localhost:8000/solar-system/</code>.';
+    }
+  </script>
+  <script>window.SOL_SYSTEM = 'proxima';</script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
