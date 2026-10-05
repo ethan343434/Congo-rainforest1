@@ -237,7 +237,7 @@ export class Hud {
     set('r-g', `${(t.gravity / G0).toFixed(t.gravity < 0.1 ? 4 : 2)} g`);
     set('r-body', t.nearest ? `${t.nearest.name} · ${formatDistance(Math.max(0, t.nearestDist))}` : '—');
     const fa = $('r-fa');
-    const faText = ctx.onFoot ? (ctx.walkerAir ? 'JETPACK' : 'WALKING') : ctx.flightAssist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF · NEWTONIAN';
+    const faText = ctx.onFoot ? (ctx.walkerAir ? 'JETPACK' : (ctx.walkerSpeed || 0) > 5 ? 'SPRINTING' : (ctx.walkerSpeed || 0) > 0.5 ? 'RUNNING' : 'STANDING') : ctx.flightAssist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF · NEWTONIAN';
     set('r-fa', faText);
     fa.parentElement.classList.toggle('off', !ctx.flightAssist && !ctx.onFoot);
 
