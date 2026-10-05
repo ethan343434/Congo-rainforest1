@@ -1402,7 +1402,7 @@ export class Game {
       const right = new THREE.Vector3().crossVectors(f.up, facing).normalize();
       _m.makeBasis(right, f.up, facing);
       a.root.quaternion.setFromRotationMatrix(_m);
-      a.update({ speed: w.speed, run: w.input.run, onGround: w.onGround, jetting: w.jetting, dt });
+      a.update({ speed: w.speed, run: w.speed > 3, onGround: w.onGround, jetting: w.jetting, dt });
     }
 
     // Proxima b's wildlife, crates, plants and the laser rifle.
@@ -1627,8 +1627,8 @@ export class Game {
     // [keys, what it does, available now?, highlighted?]
     const rows = foot ? [
       [['Mouse'], 'Look around', true],
-      [['W', 'A', 'S', 'D'], 'Walk', true],
-      [['Shift'], 'Run', true],
+      [['W', 'A', 'S', 'D'], 'Run', true],
+      [['Shift'], 'Sprint (up to 60 mph)', true],
       [['Space'], 'Jump · hold in the air for the jetpack', true],
       [['C'], 'Jetpack down', !this.walker.onGround],
       ...(this.life?.nearCrate() ? [[['E'], 'Open supply crate', true, true]] : [[['E'], 'Board the ship', nearShip, nearShip]]),

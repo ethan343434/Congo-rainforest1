@@ -5,7 +5,7 @@
 //   In the ship it is thrust (up/down) and roll (left/right); on foot it walks.
 // * Right thumb: drag anywhere on the right side to steer the ship (like the
 //   mouse's virtual stick) or to look around on foot.
-// * Buttons: hold buttons for lift, boost, brake, jump, run and the laser; tap
+// * Buttons: hold buttons for lift, boost, brake, jump, sprint and the laser; tap
 //   buttons for everything else. They show only when they apply.
 // Everything feeds the same Input object as the keyboard, so the game logic
 // does not know the difference.
@@ -23,7 +23,7 @@ const MAIN = [
   ['brake', 'BRAKE', 'KeyX', true, (c) => !c.foot && c.flying && !c.pulse],
   ['jump', 'JUMP', 'Space', true, (c) => c.foot],
   ['jetdn', 'DOWN', 'KeyC', true, (c) => c.foot],
-  ['run', 'RUN', 'ShiftLeft', true, (c) => c.foot],
+  ['run', 'SPRINT', 'ShiftLeft', true, (c) => c.foot],
   ['fire', 'FIRE', null, true, (c) => c.foot && c.armed],
   ['takeoff', 'TAKE OFF', 'Space', true, (c) => !c.foot && c.landed],
 ];

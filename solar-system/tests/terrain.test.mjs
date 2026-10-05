@@ -78,9 +78,14 @@ const w = new Walker();
 w.spawn(body, flat, new THREE.Vector3(R, 0, 0), null);
 w.cameraForward.set(0, 1, 0);
 const suit = { jetpack: 100 };
-w.input.forward = 1; w.input.run = true;
-for (let i = 0; i < 240; i++) w.update(1 / 60, suit);
-check('Running reaches full speed on the Moon', Math.abs(w.speed - WALK.run) < 0.05, `${w.speed.toFixed(2)} m/s after 4 s`);
+w.input.forward = 1;
+for (let i = 0; i < 60; i++) w.update(1 / 60, suit);
+check('Running reaches full speed on the Moon as fast as anywhere', Math.abs(w.speed - WALK.run) < 0.05, `${w.speed.toFixed(2)} m/s after 1 s`);
+w.input.run = true;
+let tSprint = 0;
+while (w.speed < WALK.sprint - 0.05 && tSprint < 10) { w.update(1 / 60, suit); tSprint += 1 / 60; }
+for (let i = 0; i < 60; i++) w.update(1 / 60, suit);
+check('Sprinting tops out at 60 mph, cheetah-fast', Math.abs(w.speed - WALK.sprint) < 0.05 && tSprint < 3.5 && w.onGround, `${(w.speed * 2.23694).toFixed(1)} mph after ${tSprint.toFixed(1)} s, on the ground: ${w.onGround}`);
 // Jump: measure height and hang time.
 w.input.forward = 0; w.input.run = false;
 for (let i = 0; i < 600; i++) w.update(1 / 60, suit); // stop

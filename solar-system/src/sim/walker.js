@@ -1,11 +1,11 @@
 // =============================================================================
 // walker.js — the astronaut on foot.
 //
-// Real surface gravity, and grip that comes from it: friction can only push
-// you as hard as your weight presses you into the ground, so on the Moon you
-// speed up, stop and turn slowly and every jump floats (3 m high, 4 s of
-// hang time). On Phobos a jump can take minutes to come down, so the
-// jetpack can also push you down and forward.
+// Running feels the same on every world: the same top speed and the same
+// grip, whatever the gravity, and Shift sprints up to 60 mph (a cheetah's
+// top speed). Jumps still follow real surface gravity, so on the Moon every
+// jump floats (3 m high, 4 s of hang time) and on Phobos a jump can take
+// minutes to come down; the jetpack can also push you down and forward.
 //
 // Positions are in the body's rotating frame, so the ground doesn't slide
 // away under you as the world turns.
@@ -13,12 +13,11 @@
 import * as THREE from 'three';
 
 export const WALK = {
-  walk: 1.9,          // m/s
-  run: 4.3,
+  run: 4.3,           // m/s, the normal pace on every world
+  sprint: 26.82,      // m/s = 60 mph (Shift)
   jump: 2.7,          // m/s take-off speed (≈0.37 m jump on Earth)
-  gripMu: 1.1,        // traction ≈ μ·g
-  minGrip: 0.35,      // m/s² (boot cleats in regolith)
-  maxGrip: 9,
+  grip: 9,            // m/s²: speeding up, stopping and turning, the same everywhere
+  sprintAccel: 10,    // m/s²: 0 to 60 mph in about 3 s, like a cheetah
   jetUp: 6.5,         // m/s² of jetpack thrust (on top of fighting gravity)
   jetSide: 3.2,
   jetDrain: 24,       // % per second
@@ -121,7 +120,7 @@ export class Walker {
     const right = _w.crossVectors(fwd, up).normalize();
     const move = new THREE.Vector3().addScaledVector(fwd, inp.forward).addScaledVector(right, inp.right);
     if (move.lengthSq() > 1) move.normalize();
-    const target = (inp.run ? WALK.run : WALK.walk);
+    const target = inp.run ? WALK.sprint : WALK.run;
     const vN = this.vel.dot(up);
     const vH = this.vel.clone().addScaledVector(up, -vN);
 
@@ -139,8 +138,8 @@ export class Walker {
 
     if (this.onGround) {
       this.airTime = 0;
-      // Traction comes from weight.
-      const grip = Math.min(WALK.maxGrip, Math.max(WALK.minGrip, WALK.gripMu * g));
+      // The same grip on every world; sprinting speeds up at cheetah pace.
+      const grip = inp.run && vH.length() >= WALK.run - 0.5 ? WALK.sprintAccel : WALK.grip;
       const want = move.multiplyScalar(target);
       const diff = want.sub(vH);
       const dv = diff.length();
@@ -191,9 +190,11 @@ export class Walker {
       }
       this.onGround = true;
     } else if (this.onGround) {
-      // Follow the ground down gentle slopes; leave it if running off an edge.
+      // Follow the ground down slopes (steeper ones at a sprint, so low
+      // gravity doesn't throw you off every bump); leave it off an edge.
       const vDown = -this.vel.dot(up2);
-      if (h < 0.25 + Math.max(0, vDown) * dt * 2) {
+      const vSide = Math.sqrt(Math.max(0, this.vel.lengthSq() - vDown * vDown));
+      if (h < 0.25 + Math.max(0, vDown) * dt * 2 + vSide * dt * 0.6) {
         this.pos.copy(up2).multiplyScalar(groundR);
       } else {
         this.onGround = false;
@@ -206,7 +207,7 @@ export class Walker {
     if (this.speed > 0.25) this.facing.copy(vH2).normalize();
     else this.facing.addScaledVector(up2, -this.facing.dot(up2)).normalize();
     if (this.onGround && this.speed > 0.3) {
-      this.stepPhase += (this.speed * dt) / (inp.run ? 1.5 : 0.85);
+      this.stepPhase += (this.speed * dt) / Math.max(1.3, this.speed * 0.25); // longer strides when fast
       if (this.stepPhase >= 1) { this.stepPhase -= 1; this.events.push({ type: 'step', run: inp.run }); }
     }
   }

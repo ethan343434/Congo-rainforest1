@@ -123,10 +123,10 @@ Portrait Orientation Lock on, to play lying down) the whole game is turned sidew
 | Key | In the ship | On foot |
 | --- | --- | --- |
 | Mouse | Steer (click to capture; drag works too) | Look |
-| `W` / `S` | Thrust forward / reverse | Walk |
+| `W` / `S` | Thrust forward / reverse | Run (same speed on every world) |
 | `A` / `D` | Roll | Strafe |
 | `Space` / `C` | Thrust up / down | Jump, hold for jetpack / jetpack down |
-| `Shift` | Boost | Run |
+| `Shift` | Boost | Sprint, up to 60 mph |
 | `J` | Pulse drive on / off | |
 | `K` | Warp drive: jump to the target | |
 | `G` | Autopilot to the target | |

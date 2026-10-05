@@ -143,7 +143,7 @@ export class AstronautModel {
   update(s) {
     const dt = s.dt;
     const moving = Math.min(1, s.speed / 1.2);
-    this.phase += dt * (s.run ? 7.2 : 5.2) * (0.35 + 0.65 * moving);
+    this.phase += dt * (s.run ? 7.2 : 5.2) * (0.35 + 0.65 * moving) * Math.max(1, Math.sqrt(s.speed / 4.3)); // faster legs at a sprint
     this.air += ((s.onGround ? 0 : 1) - this.air) * Math.min(1, dt * 6);
     const a = Math.sin(this.phase) * moving * (s.run ? 0.75 : 0.5) * (1 - this.air);
     for (const l of this.legs) {

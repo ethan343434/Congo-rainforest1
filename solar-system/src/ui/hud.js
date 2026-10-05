@@ -224,7 +224,8 @@ export class Hud {
     $('nav-frame').textContent = `in ${ctx.current.name}’s gravity`;
     // Flight.
     if (ctx.onFoot) {
-      set('r-speed', formatSpeed(ctx.walkerSpeed || 0));
+      const v = ctx.walkerSpeed || 0;
+      set('r-speed', `${formatSpeed(v)} · ${Math.round(v * 2.23694)} mph`);
       set('r-mode', ctx.walkerAir ? 'ON FOOT · JETPACK' : 'ON FOOT');
     } else {
       set('r-speed', ctx.mode === 'pulse' ? `${formatSpeed(t.speed)}` : formatSpeed(ctx.surfaceSpeed ?? t.speed));
